@@ -62,7 +62,7 @@ struct app_state {
     float step_size = 1;
     vec2f mouse = zero2f;
     vec3f mov = zero3f;
-    float camera_distance = 5;
+    float camera_distance = 3;
 
     float A = -100, B = 5, C = 2, D = 1;
 
@@ -240,8 +240,8 @@ inline void run_ui(app_state* app, int w, int h, const string& title) {
         if (!get_widget_active(win)) {
             if (get_key(win, 'a')) app->mov.x -= 0.1;
             if (get_key(win, 'd')) app->mov.x += 0.1;
-            if (get_key(win, 's')) app->mov.z += 0.1;
-            if (get_key(win, 'w')) app->mov.z -= 0.1;
+            if (get_key(win, 's')) app->mov.z -= 0.1;
+            if (get_key(win, 'w')) app->mov.z += 0.1;
             if (get_key(win, 'e')) app->mov.y += 0.1;
             if (get_key(win, 'q')) app->mov.y -= 0.1;
         }

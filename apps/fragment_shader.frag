@@ -17,7 +17,7 @@ uniform float A, B, C, D;
 uniform vec3 mov;
 
 vec3 _LightDir = vec3(0,500,0); //we are assuming infinite light intensity
-vec3 _CameraDir = vec3(0,5,-5);
+vec3 _CameraDir = vec3(0,5,5);
 float blinn_phong_alpha = 100;
 
 uniform float ka = 0.05;
@@ -66,6 +66,8 @@ float length8(vec2 p) {
 // ------------------------- TRANSFORMATIONS --------------------------
 // --------------------------------------------------------------------
 
+
+
 vec3 jumping_twist( vec3 p ) {
     float c = cos(5.0*p.y);
     float s = sin(5.0*p.y);
@@ -86,6 +88,12 @@ vec3 twist( vec3 p ) {
 // --------------------------------------------------------------------
 // ------------------------- OPERATIONS -------------------------------
 // --------------------------------------------------------------------
+
+//Polynomial smooth minimum from: http://iquilezles.org/www/articles/smin/smin.htm
+float smin(float a, float b, float k ) {
+    float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
+    return mix( b, a, h ) - k*h*(1.0-h);
+}
 
 float opSubtract( float d1, float d2 ) {
     return max(-d1,d2);
@@ -131,13 +139,13 @@ float sphere(vec3 p, float r) {
 
 
 float map(vec3 p) {
-    //vec3 rp = p;
-    vec3 rp = twist(p);
+    vec3 rp = p;
+    //vec3 rp = twist(p);
     //vec3 rp = (inverse(rotateZ(time * 2)) * vec4(p, 1.0)).xyz;
-    return sdTorus(rp, vec2(1, 0.2));
-    //float d1 = sphere(p, 1.0);
-    //float d2 = sphere(p + mov, 2.0);
-    //return max(-d1, d2);
+    //return sdTorus(rp, vec2(1, 0.2));
+    float d1 = sphere(p, 1.0);
+    float d2 = sphere(p + mov/4.0, 1.5);
+    return smin(d1, d2, 0.5);
 }
 
 //Adapted from: http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/#rotation-and-translation
@@ -196,10 +204,11 @@ void main() {
     //vec3 ro = 2.5*vec3(cos(atime), 0, -sin(atime));
     //camera movement
     if (mouse.y != 0.0) {
-        _CameraDir.y = (mouse.y / resolution.y - 0.5)*3.0*camera_distance;
-        _CameraDir.z = cos(mouse.x / resolution.x * 2.0 * PI)*camera_distance;
-        _CameraDir.x = sin(mouse.x / resolution.x * 2.0 * PI)*camera_distance;
+        _CameraDir.y = 5.0*(mouse.y / resolution.y - 0.5)*3.0;
+        _CameraDir.z =-5.0*cos(mouse.x / resolution.x * 2.0 * PI);
+        _CameraDir.x = 5.0*sin(mouse.x / resolution.x * 2.0 * PI);
     }
+    _CameraDir *= camera_distance;
     vec3 rd = camera(_CameraDir, vec3(0))*normalize(vec3(uv, 2.0));
 
     fragColor = raymarch(_CameraDir, rd);
