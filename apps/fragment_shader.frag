@@ -7,6 +7,7 @@ out vec4 fragColor;
 
 uniform vec2 resolution;
 uniform vec2 mouse;
+uniform float camera_distance;
 uniform float time;
 uniform int max_raymarching_steps; //64 by default
 uniform float max_distance; //100 by default
@@ -97,7 +98,7 @@ float map(vec3 p) {
     vec3 rp = p;
     //vec3 rp = twist(p);
     //vec3 rp = (inverse(rotateZ(time * 2)) * vec4(p, 1.0)).xyz;
-    return sdTorus_bulbus(rp, vec2(1, 0.2));
+    return sdTorus88(rp, vec2(1, 0.2));
 }
 
 //Adapted from: http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/#rotation-and-translation
@@ -155,6 +156,9 @@ void main() {
     float atime = time*0.3;
     //vec3 ro = 2.5*vec3(cos(atime), 0, -sin(atime));
     vec3 ro = _CameraDir;
+    if (mouse.y != 0.0) ro.y += (mouse.y / resolution.y - 0.5)*3.0*camera_distance;
+    ro.z = cos(mouse.x / resolution.x * 2.0 * PI)*camera_distance;
+    ro.x = sin(mouse.x / resolution.x * 2.0 * PI)*camera_distance;
     vec3 rd = camera(ro, vec3(0))*normalize(vec3(uv, 2.0));
 
     fragColor = raymarch(ro, rd);

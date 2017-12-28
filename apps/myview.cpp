@@ -84,7 +84,8 @@ struct app_state {
     int max_raymarching_steps = 64;
     float max_distance = 100;
     float step_size = 1;
-    vec2f mouse;
+    vec2f mouse = zero2f;
+    float camera_distance = 10;
 
     float A = -100, B = 5, C = 2, D = 1;
 
@@ -152,6 +153,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "max_raymarching_steps", app->max_raymarching_steps);
     pass_to_shader(app, "max_distance", app->max_distance);
     pass_to_shader(app, "step_size", app->step_size);
+    pass_to_shader(app, "camera_distance", app->camera_distance);
     pass_to_shader(app, "A", app->A);
     pass_to_shader(app, "B", app->B);
     pass_to_shader(app, "C", app->C);
@@ -243,8 +245,7 @@ inline void run_ui(app_state* app, int w, int h, const string& title) {
             auto rotate = zero2f;
             switch (mouse_button) {
                 case 1: app->mouse = mouse_pos; break;
-                case 2:
-                    dolly = (mouse_pos[0] - mouse_last[0]) / 100.0f;
+                case 2: app->camera_distance += (mouse_pos.x - mouse_last.x) / 40.0f;
                     break;
                 case 3: pan = (mouse_pos - mouse_last) / 100.0f; break;
                 default: break;
