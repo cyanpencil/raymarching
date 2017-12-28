@@ -84,6 +84,7 @@ struct app_state {
     int max_raymarching_steps = 64;
     float max_distance = 100;
     float step_size = 1;
+    vec2f mouse;
 
     float A = -100, B = 5, C = 2, D = 1;
 
@@ -134,7 +135,7 @@ inline void pass_to_shader(app_state* app, string name, int value) {
     glUniform1i(uniform_name, value);
 }
 
-inline void pass_to_shader(app_state* app, string name, int value1, int value2) {
+inline void pass_to_shader(app_state* app, string name, float value1, float value2) {
     int uniform_name = glGetUniformLocation(app->shstate->prog._prog._pid,name.c_str());
     glUniform2f(uniform_name, value1, value2);
 }
@@ -147,6 +148,7 @@ inline void shade_scene(app_state* app) {
 
     //passing parameters to the fragment shader
     pass_to_shader(app, "resolution", app->framebuffer_size.x, app->framebuffer_size.y);
+    pass_to_shader(app, "mouse", app->mouse.x, app->mouse.y);
     pass_to_shader(app, "max_raymarching_steps", app->max_raymarching_steps);
     pass_to_shader(app, "max_distance", app->max_distance);
     pass_to_shader(app, "step_size", app->step_size);
@@ -235,23 +237,20 @@ inline void run_ui(app_state* app, int w, int h, const string& title) {
         set_window_title(win, ("yview | " + app->filename));
 
         // handle mouse and keyboard for navigation
-        //if (mouse_button && !get_widget_active(win)) {
-                //auto dolly = 0.0f;
-                //auto pan = zero2f;
-                //auto rotate = zero2f;
-                //switch (mouse_button) {
-                    //case 1: rotate = (mouse_pos - mouse_last) / 100.0f; break;
-                    //case 2:
-                        //dolly = (mouse_pos[0] - mouse_last[0]) / 100.0f;
-                        //break;
-                    //case 3: pan = (mouse_pos - mouse_last) / 100.0f; break;
-                    //default: break;
-                //}
-
-                //camera_turntable(
-                    //app->scam->frame, app->scam->focus, rotate, dolly, pan);
-            //app->scene_updated = true;
-        //}
+        if (mouse_button && !get_widget_active(win)) {
+            auto dolly = 0.0f;
+            auto pan = zero2f;
+            auto rotate = zero2f;
+            switch (mouse_button) {
+                case 1: app->mouse = mouse_pos; break;
+                case 2:
+                    dolly = (mouse_pos[0] - mouse_last[0]) / 100.0f;
+                    break;
+                case 3: pan = (mouse_pos - mouse_last) / 100.0f; break;
+                default: break;
+            }
+            app->scene_updated = true;
+        }
 
         // handle keytboard for navigation
         //if (!get_widget_active(win)) {
@@ -288,19 +287,6 @@ inline void run_ui(app_state* app, int w, int h, const string& title) {
 int main(int argc, char* argv[]) {
     // create empty scene
     auto app = new app_state();
-
-    // parse command line
-    auto parser = make_parser(argc, argv, "yview", "views scenes inteactively");
-    auto log_filename = parse_opt(parser, "--log", "", "log to disk", ""s);
-    if (log_filename != "") add_file_stream(log_filename, true);
-    app->imfilename =
-        parse_opt(parser, "--output-image", "-o", "image filename", "out.hdr"s);
-    app->filename = parse_arg(parser, "scene", "scene filename", ""s);
-    if (should_exit(parser)) {
-        printf("%s\n", get_usage(parser).c_str());
-        exit(1);
-    }
-
 
     // run ui
     auto width = 800;

@@ -6,6 +6,7 @@
 out vec4 fragColor;
 
 uniform vec2 resolution;
+uniform vec2 mouse;
 uniform float time;
 uniform int max_raymarching_steps; //64 by default
 uniform float max_distance; //100 by default
@@ -54,6 +55,18 @@ float atan2(in float y, in float x) {
 }
 
 
+float length8(vec2 p) {
+    vec2 r = p*p*p*p;
+    return pow(dot(r,r), (1.0/8.0));
+}
+
+float sdTorus88( vec3 p, vec2 t ) {
+  vec2 q = vec2(length8(p.xz)-t.x,p.y);
+  float angle = atan2(p.z , p.x)/2 + time*D; //atan divided by 2 to  have only one bulb
+  return length8(q) - (t.y + exp(A*(pow(cos(angle), C)))/B);
+}
+
+
 float sdTorus_bulbus(vec3 p, vec2 t) {
     vec2 q = vec2(length(p.xz) - t.x, p.y);
     //return length(q) - (t.y + (pow(max(0.0, sin(atan2(p.z , p.x) + time*2)), 10)/3));
@@ -72,8 +85,17 @@ float sdTorus(vec3 p, vec2 t) {
     return length(q) - (t.y );
 }
 
+vec3 twist( vec3 p ) {
+    float c = cos(5.0*p.y);
+    float s = sin(5.0*p.y);
+    mat2  m = mat2(c,-s,s,c);
+    vec3  q = vec3(m*p.xz,p.y);
+    return q;
+}
+
 float map(vec3 p) {
     vec3 rp = p;
+    //vec3 rp = twist(p);
     //vec3 rp = (inverse(rotateZ(time * 2)) * vec4(p, 1.0)).xyz;
     return sdTorus_bulbus(rp, vec2(1, 0.2));
 }
