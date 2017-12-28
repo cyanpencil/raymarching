@@ -37,35 +37,11 @@ using namespace ygl;
 // ---------------------------------------------------------------------------
 
 //
-// OpenGL shape vbo
-//
-struct shape_vbo {
-    gl_vertex_buffer pos = {};
-    gl_vertex_buffer norm = {};
-    gl_vertex_buffer texcoord = {};
-    gl_vertex_buffer texcoord1 = {};
-    gl_vertex_buffer color = {};
-    gl_vertex_buffer tangsp = {};
-    gl_element_buffer points = {};
-    gl_element_buffer lines = {};
-    gl_element_buffer triangles = {};
-    gl_element_buffer quads = {};
-    gl_element_buffer edges = {};
-};
-
-//
 // OpenGL state
 //
 struct shade_state {
     // shade state
     gl_stdsurface_program prog = {};
-    unordered_map<texture*, gl_texture> txt;
-    unordered_map<shape*, shape_vbo> vbo;
-
-    // lights
-    vector<vec3f> lights_pos;
-    vector<vec3f> lights_ke;
-    vector<gl_ltype> lights_ltype;
 };
 
 //
@@ -85,7 +61,8 @@ struct app_state {
     float max_distance = 100;
     float step_size = 1;
     vec2f mouse = zero2f;
-    float camera_distance = 10;
+    vec3f mov = zero3f;
+    float camera_distance = 5;
 
     float A = -100, B = 5, C = 2, D = 1;
 
@@ -141,6 +118,11 @@ inline void pass_to_shader(app_state* app, string name, float value1, float valu
     glUniform2f(uniform_name, value1, value2);
 }
 
+inline void pass_to_shader(app_state* app, string name, vec3f value) {
+    int uniform_name = glGetUniformLocation(app->shstate->prog._prog._pid,name.c_str());
+    glUniform3f(uniform_name, value.x, value.y, value.z);
+}
+
 // Display a scene
 inline void shade_scene(app_state* app) {
     if (!is_program_valid(app->shstate->prog)) app->shstate->prog = make_my_program();
@@ -150,6 +132,7 @@ inline void shade_scene(app_state* app) {
     //passing parameters to the fragment shader
     pass_to_shader(app, "resolution", app->framebuffer_size.x, app->framebuffer_size.y);
     pass_to_shader(app, "mouse", app->mouse.x, app->mouse.y);
+    pass_to_shader(app, "mov", app->mov);
     pass_to_shader(app, "max_raymarching_steps", app->max_raymarching_steps);
     pass_to_shader(app, "max_distance", app->max_distance);
     pass_to_shader(app, "step_size", app->step_size);
@@ -254,19 +237,14 @@ inline void run_ui(app_state* app, int w, int h, const string& title) {
         }
 
         // handle keytboard for navigation
-        //if (!get_widget_active(win)) {
-            //auto transl = zero3f;
-            //if (get_key(win, 'a')) transl.x -= 1;
-            //if (get_key(win, 'd')) transl.x += 1;
-            //if (get_key(win, 's')) transl.z += 1;
-            //if (get_key(win, 'w')) transl.z -= 1;
-            //if (get_key(win, 'e')) transl.y += 1;
-            //if (get_key(win, 'q')) transl.y -= 1;
-            //if (transl != zero3f) {
-                //camera_fps(app->scam->frame, transl, {0, 0});
-                //app->scene_updated = true;
-            //}
-        //}
+        if (!get_widget_active(win)) {
+            if (get_key(win, 'a')) app->mov.x -= 0.1;
+            if (get_key(win, 'd')) app->mov.x += 0.1;
+            if (get_key(win, 's')) app->mov.z += 0.1;
+            if (get_key(win, 'w')) app->mov.z -= 0.1;
+            if (get_key(win, 'e')) app->mov.y += 0.1;
+            if (get_key(win, 'q')) app->mov.y -= 0.1;
+        }
 
         // draw
         draw(win);

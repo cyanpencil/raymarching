@@ -14,10 +14,11 @@ uniform float max_distance; //100 by default
 uniform float step_size;
 
 uniform float A, B, C, D;
+uniform vec3 mov;
 
-uniform vec3 _LightDir = vec3(0,500,0); //we are assuming infinite light intensity
-uniform vec3 _CameraDir = vec3(0,5,5);
-uniform float blinn_phong_alpha = 100;
+vec3 _LightDir = vec3(0,500,0); //we are assuming infinite light intensity
+vec3 _CameraDir = vec3(0,5,-5);
+float blinn_phong_alpha = 100;
 
 uniform float ka = 0.05;
 uniform float kd = 0.3;
@@ -61,6 +62,40 @@ float length8(vec2 p) {
     return pow(dot(r,r), (1.0/8.0));
 }
 
+// --------------------------------------------------------------------
+// ------------------------- TRANSFORMATIONS --------------------------
+// --------------------------------------------------------------------
+
+vec3 jumping_twist( vec3 p ) {
+    float c = cos(5.0*p.y);
+    float s = sin(5.0*p.y);
+    mat2  m = mat2(c,-s,s,c);
+    vec3  q = vec3(m*p.xz,p.y*pow(sin(time)*1.5, 4.0));
+    return q;
+}
+
+vec3 twist( vec3 p ) {
+    float c = cos(5.0*p.y);
+    float s = sin(5.0*p.y);
+    mat2  m = mat2(c,-s,s,c);
+    vec3  q = vec3(m*p.xz,p.y);
+    return q;
+}
+
+
+// --------------------------------------------------------------------
+// ------------------------- OPERATIONS -------------------------------
+// --------------------------------------------------------------------
+
+float opSubtract( float d1, float d2 ) {
+    return max(-d1,d2);
+}
+
+
+// --------------------------------------------------------------------
+// ---------------------- DISTANCE FUNCTIONS --------------------------
+// --------------------------------------------------------------------
+
 float sdTorus88( vec3 p, vec2 t ) {
   vec2 q = vec2(length8(p.xz)-t.x,p.y);
   float angle = atan2(p.z , p.x)/2 + time*D; //atan divided by 2 to  have only one bulb
@@ -86,19 +121,23 @@ float sdTorus(vec3 p, vec2 t) {
     return length(q) - (t.y );
 }
 
-vec3 twist( vec3 p ) {
-    float c = cos(5.0*p.y);
-    float s = sin(5.0*p.y);
-    mat2  m = mat2(c,-s,s,c);
-    vec3  q = vec3(m*p.xz,p.y);
-    return q;
+float sphere(vec3 p, float r) {
+    return length(p) - r;
 }
 
+
+
+
+
+
 float map(vec3 p) {
-    vec3 rp = p;
-    //vec3 rp = twist(p);
+    //vec3 rp = p;
+    vec3 rp = twist(p);
     //vec3 rp = (inverse(rotateZ(time * 2)) * vec4(p, 1.0)).xyz;
-    return sdTorus88(rp, vec2(1, 0.2));
+    return sdTorus(rp, vec2(1, 0.2));
+    //float d1 = sphere(p, 1.0);
+    //float d2 = sphere(p + mov, 2.0);
+    //return max(-d1, d2);
 }
 
 //Adapted from: http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/#rotation-and-translation
@@ -155,11 +194,13 @@ void main() {
 
     float atime = time*0.3;
     //vec3 ro = 2.5*vec3(cos(atime), 0, -sin(atime));
-    vec3 ro = _CameraDir;
-    if (mouse.y != 0.0) ro.y += (mouse.y / resolution.y - 0.5)*3.0*camera_distance;
-    ro.z = cos(mouse.x / resolution.x * 2.0 * PI)*camera_distance;
-    ro.x = sin(mouse.x / resolution.x * 2.0 * PI)*camera_distance;
-    vec3 rd = camera(ro, vec3(0))*normalize(vec3(uv, 2.0));
+    //camera movement
+    if (mouse.y != 0.0) {
+        _CameraDir.y = (mouse.y / resolution.y - 0.5)*3.0*camera_distance;
+        _CameraDir.z = cos(mouse.x / resolution.x * 2.0 * PI)*camera_distance;
+        _CameraDir.x = sin(mouse.x / resolution.x * 2.0 * PI)*camera_distance;
+    }
+    vec3 rd = camera(_CameraDir, vec3(0))*normalize(vec3(uv, 2.0));
 
-    fragColor = raymarch(ro, rd);
+    fragColor = raymarch(_CameraDir, rd);
 }    
