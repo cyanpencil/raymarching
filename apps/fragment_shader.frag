@@ -66,7 +66,13 @@ float length8(vec2 p) {
 // ------------------------- TRANSFORMATIONS --------------------------
 // --------------------------------------------------------------------
 
-
+vec3 jumping_twist2( vec3 p ) {
+    float c = cos(5.0*p.y);
+    float s = sin(5.0*p.y);
+    mat2  m = mat2(c,-s,s,c);
+    vec3  q = vec3(m*p.xz *sin(time),p.y);
+    return q;
+}
 
 vec3 jumping_twist( vec3 p ) {
     float c = cos(5.0*p.y);
@@ -143,8 +149,9 @@ float map(vec3 p) {
     //vec3 rp = twist(p);
     //vec3 rp = (inverse(rotateZ(time * 2)) * vec4(p, 1.0)).xyz;
     //return sdTorus(rp, vec2(1, 0.2));
-    float d1 = sphere(p, 1.0);
+    float d1 = sphere(p, 1.2);
     float d2 = sphere(p + mov/4.0, 1.5);
+    float d3 = sdTorus(twist((inverse(rotateY(time * 2)) * vec4(p + mov/10.0, 1.0)).xyz), vec2(1.3, 0.2));
     return smin(d1, d2, 0.5);
 }
 

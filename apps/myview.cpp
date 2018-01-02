@@ -244,6 +244,7 @@ inline void run_ui(app_state* app, int w, int h, const string& title) {
             if (get_key(win, 'w')) app->mov.z += 0.1;
             if (get_key(win, 'e')) app->mov.y += 0.1;
             if (get_key(win, 'q')) app->mov.y -= 0.1;
+            if (get_key(win, 'z')) exit(0);
         }
 
         // draw
