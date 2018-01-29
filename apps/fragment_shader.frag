@@ -1,6 +1,7 @@
-#version 330 core
+//#version 330 core
 
 #define PI 3.1415926535897932384626433832795
+#define inf 9e100
 
 
 out vec4 fragColor;
@@ -282,11 +283,12 @@ float atan2(in float y, in float x) {
     return x == 0.0 ? sign(y)*PI/2 : atan(y, x);
 }
 
-
 float length8(vec2 p) {
     vec2 r = p*p*p*p;
     return pow(dot(r,r), (1.0/8.0));
 }
+
+
 
 // --------------------------------------------------------------------
 // ------------------------- TRANSFORMATIONS --------------------------
@@ -340,7 +342,126 @@ float opUnion(float d1, float d2) {
 // ---------------------- DISTANCE FUNCTIONS --------------------------
 // --------------------------------------------------------------------
 
+
+// Inigo shapes
+// All those shapes were taken from Inigo Quielez's blog:
+// http://iquilezles.org/www/articles/distfunctions/distfunctions.htm
+
+//Sphere - signed - exact
+float sdSphere( vec3 p, float s ) {
+  return length(p)-s;
+}
+
+//Box - unsigned - exact
+float udBox( vec3 p, vec3 b ) {
+  return length(max(abs(p)-b,0.0));
+}
+
+//Round Box - unsigned - exact
+float udRoundBox( vec3 p, vec3 b, float r ) {
+  return length(max(abs(p)-b,0.0))-r;
+}
+
+//Box - signed - exact
+float sdBox( vec3 p, vec3 b ) {
+  vec3 d = abs(p) - b;
+  return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+}
+
+//Torus - signed - exact
+float sdTorus( vec3 p, vec2 t ) {
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length(q)-t.y;
+}
+
+//Cylinder - signed - exact
+float sdCylinder( vec3 p, vec3 c ) {
+  return length(p.xz-c.xy)-c.z;
+}
+
+//Cone - signed - exact
+float sdCone( vec3 p, vec2 c ) {
+    // c must be normalized
+    float q = length(p.xy);
+    return dot(c,vec2(q,p.z));
+}
+
+//Plane - signed - exact
+float sdPlane( vec3 p, vec4 n ) {
+  // n must be normalized
+  return dot(p,n.xyz) + n.w;
+}
+
+//Hexagonal Prism - signed - exact
+float sdHexPrism( vec3 p, vec2 h ) {
+    vec3 q = abs(p);
+    return max(q.z-h.y,max((q.x*0.866025+q.y*0.5),q.y)-h.x);
+}
+
+//Triangular Prism - signed - exact
+float sdTriPrism( vec3 p, vec2 h ) {
+    vec3 q = abs(p);
+    return max(q.z-h.y,max(q.x*0.866025+p.y*0.5,-p.y)-h.x*0.5);
+}
+
+//Capsule / Line - signed - exact
+float sdCapsule( vec3 p, vec3 a, vec3 b, float r ) {
+    vec3 pa = p - a, ba = b - a;
+    float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
+    return length( pa - ba*h ) - r;
+}
+
+//Capped cylinder - signed - exact
+float sdCappedCylinder( vec3 p, vec2 h ) {
+  vec2 d = abs(vec2(length(p.xz),p.y)) - h;
+  return min(max(d.x,d.y),0.0) + length(max(d,0.0));
+}
+
+//Capped Cone - signed - bound
+float sdCappedCone( in vec3 p, in vec3 c ) {
+    vec2 q = vec2( length(p.xz), p.y );
+    vec2 v = vec2( c.z*c.y/c.x, -c.z );
+    vec2 w = v - q;
+    vec2 vv = vec2( dot(v,v), v.x*v.x );
+    vec2 qv = vec2( dot(v,w), v.x*w.x );
+    vec2 d = max(qv,0.0)*qv/vv;
+    return sqrt( dot(w,w) - max(d.x,d.y) ) * sign(max(q.y*v.x-q.x*v.y,w.y));
+}
+
+//Ellipsoid - signed - bound
+float sdEllipsoid( in vec3 p, in vec3 r ) {
+    return (length( p/r ) - 1.0) * min(min(r.x,r.y),r.z);
+}
+
+
+//Torus82 - signed
+float sdTorus82( vec3 p, vec2 t ) {
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length8(q)-t.y;
+}
+
+//Torus88 - signed
 float sdTorus88( vec3 p, vec2 t ) {
+  vec2 q = vec2(length8(p.xz)-t.x,p.y);
+  return length8(q)-t.y;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+float mysdTorus88( vec3 p, vec2 t ) {
   vec2 q = vec2(length8(p.xz)-t.x,p.y);
   float angle = atan2(p.z , p.x)/2 + time*D; //atan divided by 2 to  have only one bulb
   return length8(q) - (t.y + exp(A*(pow(cos(angle), C)))/B);
@@ -357,16 +478,6 @@ float sdTorus_bulbus(vec3 p, vec2 t) {
     return length(q) - (t.y + exp(A*(pow(cos(angle), C)))/B);
 
     //In latex: \sqrt{(x - T_x)^2 + (y)^2} - T_y + e^{-100*\cos(atan2(y, x)/2 + t)^2 / 5}
-}
-
-// Adapted from: http://iquilezles.org/www/articles/distfunctions/distfunctions.htm
-float sdTorus(vec3 p, vec2 t) {
-    vec2 q = vec2(length(p.xz) - t.x, p.y);
-    return length(q) - (t.y );
-}
-
-float sphere(vec3 p, float r) {
-    return length(p) - r;
 }
 
 
@@ -403,23 +514,45 @@ float box (vec3 p, float l) {
 }
 
 
-
+float sdCross( in vec3 p ) {
+  float da = sdBox(p.xyz,vec3(inf,1.0,1.0));
+  float db = sdBox(p.yzx,vec3(1.0,inf,1.0));
+  float dc = sdBox(p.zxy,vec3(1.0,1.0,inf));
+  return min(da,min(db,dc));
+}
 
 float map(vec3 p) {
     //vec3 rp = p;
     //vec3 rp = twist(p);
-    vec3 rp = (inverse(rotateZ(time * 2)) * vec4(p, 1.0)).xyz;
+    //vec3 rp = (inverse(rotateZ(time * 2)) * vec4(p, 1.0)).xyz;
     //return sdTorus_bulbus(rp, vec2(1, 0.2));
 
-    float d1 = sphere(p, 1.2);
-    float d2 = sphere(p + mov/4.0, 1.5);
+    //float d1 = sdSphere(mod(p + 5.0, 10.0) - 5.0, 1.2);
+    //float d1 = sdSphere(vec3(p.x, p.y, mod(p.z, 10.0)), 1.2);
+    //float d2 = sdSphere(p + mov/2.0, 11.5);
     //float d3 = sdTorus(twist((inverse(rotateY(time * 2)) * vec4(p + mov/10.0, 1.0)).xyz), vec2(1.3, 0.2));
     //vec3 rp = (inverse(rotateZ(time * 2)) * vec4(p, 1.0)).xyz;
     //float d4 = sdTorus(rp, vec2(2, 0.2));
-    return smin(d1, d2, 0.5);
+    //return smin(d1, d2, 5.5);
 
     //return box(rp, 2.0 + pow(sin(p.x), C) + p.x/50.0);
 
+
+    float d = sdBox(p,vec3(1.0));
+    float s = 1.0;
+    for( int m=0; m<3; m++ ) {
+        vec3 a = mod( p*s, 2.0 )-1.0;
+        s *= 3.0;
+        vec3 r = abs(1.0 - 3.0*abs(a));
+
+        float da = max(r.x,r.y);
+        float db = max(r.y,r.z);
+        float dc = max(r.z,r.x);
+        float c = (min(da,min(db,dc))-1.0)/s;
+
+        d = max(d,c);
+    }
+    return d;
 }
 
 //Adapted from: http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/#rotation-and-translation

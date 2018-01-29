@@ -9,7 +9,7 @@ if [[ ./bin/fragment_shader.frag -nt ./apps/fragment_shader.frag ]]; then
   exit 1
 fi
 
-cp -p ./apps/fragment_shader.frag ./bin/
+cp -p ./apps/*.frag ./bin/
 
 cd build
 export CC=/usr/bin/clang

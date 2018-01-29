@@ -94,7 +94,7 @@ inline gl_stdsurface_program make_my_program() {
 
     assert(gl_check_error());
     auto prog = gl_stdsurface_program();
-    prog._prog = make_program(myvert, myfrag);
+    prog._prog = make_program(myvert, "#version 330 core\n" + myfrag);
     assert(gl_check_error());
     return prog;
 }
@@ -174,7 +174,7 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "Ray steps", app->max_raymarching_steps, 1, 200, 1);
         draw_value_widget(win, "Max distance", app->max_distance, 0, 200, 1);
         draw_value_widget(win, "step size", app->step_size, 0, 1, 1);
-        draw_value_widget(win, "jitter factor", app->jitter_factor, 0, 5, 1);
+        draw_value_widget(win, "jitter factor", app->jitter_factor, 0, 10, 1);
         draw_value_widget(win, "A", app->A, 0, -1000, 1);
         draw_value_widget(win, "B", app->B, 0, 100, 1);
         draw_value_widget(win, "C", app->C, 0, 10, 1);
