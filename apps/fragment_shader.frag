@@ -239,6 +239,195 @@ uniform float ks = 1.0;
 
 
 
+//
+// Description : Array and textureless GLSL 2D simplex noise function.
+//      Author : Ian McEwan, Ashima Arts.
+//  Maintainer : stegu
+//     Lastmod : 20110822 (ijm)
+//     License : Copyright (C) 2011 Ashima Arts. All rights reserved.
+//               Distributed under the MIT License. See LICENSE file.
+//               https://github.com/ashima/webgl-noise
+//               https://github.com/stegu/webgl-noise
+//
+
+vec3 mod289(vec3 x) {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec2 mod289(vec2 x) {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec3 permute(vec3 x) {
+  return mod289(((x*34.0)+1.0)*x);
+}
+
+float snoise(vec2 v)
+  {
+  const vec4 C = vec4(0.211324865405187,  // (3.0-sqrt(3.0))/6.0
+                      0.366025403784439,  // 0.5*(sqrt(3.0)-1.0)
+                     -0.577350269189626,  // -1.0 + 2.0 * C.x
+                      0.024390243902439); // 1.0 / 41.0
+// First corner
+  vec2 i  = floor(v + dot(v, C.yy) );
+  vec2 x0 = v -   i + dot(i, C.xx);
+
+// Other corners
+  vec2 i1;
+  //i1.x = step( x0.y, x0.x ); // x0.x > x0.y ? 1.0 : 0.0
+  //i1.y = 1.0 - i1.x;
+  i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+  // x0 = x0 - 0.0 + 0.0 * C.xx ;
+  // x1 = x0 - i1 + 1.0 * C.xx ;
+  // x2 = x0 - 1.0 + 2.0 * C.xx ;
+  vec4 x12 = x0.xyxy + C.xxzz;
+  x12.xy -= i1;
+
+// Permutations
+  i = mod289(i); // Avoid truncation effects in permutation
+  vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+        + i.x + vec3(0.0, i1.x, 1.0 ));
+
+  vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+  m = m*m ;
+  m = m*m ;
+
+// Gradients: 41 points uniformly over a line, mapped onto a diamond.
+// The ring size 17*17 = 289 is close to a multiple of 41 (41*7 = 287)
+
+  vec3 x = 2.0 * fract(p * C.www) - 1.0;
+  vec3 h = abs(x) - 0.5;
+  vec3 ox = floor(x + 0.5);
+  vec3 a0 = x - ox;
+
+// Normalise gradients implicitly by scaling m
+// Approximation of: m *= inversesqrt( a0*a0 + h*h );
+  m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+
+// Compute final noise value at P
+  vec3 g;
+  g.x  = a0.x  * x0.x  + h.x  * x0.y;
+  g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+  return 130.0 * dot(m, g);
+}
+
+
+
+
+
+
+
+
+// ------  VALUE NOISE BY INIGO QUIELEZ: http://www.iquilezles.org/www/articles/morenoise/morenoise.htm
+
+float hash2( vec2 p )
+{
+    p  = 50.0*fract( p*0.3183099 );
+    return fract( p.x*p.y*(p.x+p.y) );
+}
+
+
+vec3 noised2( in vec2 x )
+{
+    vec2 p = floor(x);
+    vec2 w = fract(x);
+    
+    vec2 u = w*w*w*(w*(w*6.0-15.0)+10.0);
+    vec2 du = 30.0*w*w*(w*(w-2.0)+1.0);
+    
+    float a = hash2(p+vec2(0,0));
+    float b = hash2(p+vec2(1,0));
+    float c = hash2(p+vec2(0,1));
+    float d = hash2(p+vec2(1,1));
+
+    float k0 = a;
+    float k1 = b - a;
+    float k2 = c - a;
+    float k4 = a - b - c + d;
+
+    return vec3( -1.0+2.0*(k0 + k1*u.x + k2*u.y + k4*u.x*u.y), 
+                      2.0* du * vec2( k1 + k4*u.y,
+                                      k2 + k4*u.x ) );
+}
+
+
+const mat2 m2 = mat2(  0.80,  0.60, -0.60,  0.80 );
+const mat2 m2i = mat2( 0.80, -0.60, 0.60,  0.80 );
+
+// returns 3D fbm and its 3 derivatives
+vec3 fbmd_9( in vec2 x , int octaves)
+{
+    float f = 1.9;
+    float s = 0.55;
+    float a = 0.0;
+    float b = 0.5;
+    vec2  d = vec2(0.0);
+    mat2  m = mat2(1.0,0.0,0.0,1.0);
+    for( int i=0; i< octaves; i++ )
+    {
+        vec3 n = noised2(x);
+        a += b*n.x;          // accumulate values		
+        d += b*m*n.yz;       // accumulate derivatives
+        b *= s;
+        x = f*m2*x;
+        m = f*m2i*m;
+    }
+	return vec3( a, d );
+}
+
+
+
+
+
+
+
+
+
+
+// --- Noise function by inigo quielez
+vec2 hash( in vec2 x )  // replace this by something better
+{
+    const vec2 k = vec2( 0.3183099, 0.3678794 );
+    x = x*k + k.yx;
+    return -1.0 + 2.0*fract( 16.0 * k*fract( x.x*x.y*(x.x+x.y)) );
+}
+
+
+// return gradient noise (in x) and its derivatives (in yz)
+vec3 noised( in vec2 p )
+{
+    vec2 i = floor( p );
+    vec2 f = fract( p );
+
+#if 1
+    // quintic interpolation
+    vec2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
+    vec2 du = 30.0*f*f*(f*(f-2.0)+1.0);
+#else
+    // cubic interpolation
+    vec2 u = f*f*(3.0-2.0*f);
+    vec2 du = 6.0*f*(1.0-f);
+#endif    
+    
+    vec2 ga = hash( i + vec2(0.0,0.0) );
+    vec2 gb = hash( i + vec2(1.0,0.0) );
+    vec2 gc = hash( i + vec2(0.0,1.0) );
+    vec2 gd = hash( i + vec2(1.0,1.0) );
+    
+    float va = dot( ga, f - vec2(0.0,0.0) );
+    float vb = dot( gb, f - vec2(1.0,0.0) );
+    float vc = dot( gc, f - vec2(0.0,1.0) );
+    float vd = dot( gd, f - vec2(1.0,1.0) );
+
+    return vec3( va + u.x*(vb-va) + u.y*(vc-va) + u.x*u.y*(va-vb-vc+vd),   // value
+                 ga + u.x*(gb-ga) + u.y*(gc-ga) + u.x*u.y*(ga-gb-gc+gd) +  // derivatives
+                 du * (u.yx*(va-vb-vc+vd) + vec2(vb,vc) - va));
+}
+
+
+
+
+
 
 
 
@@ -521,6 +710,45 @@ float sdCross( in vec3 p ) {
   return min(da,min(db,dc));
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+// return smoothstep and its derivative
+vec2 smoothstepd( float a, float b, float x)
+{
+	if( x<a ) return vec2( 0.0, 0.0 );
+	if( x>b ) return vec2( 1.0, 0.0 );
+    float ir = 1.0/(b-a);
+    x = (x-a)*ir;
+    return vec2( x*x*(3.0-2.0*x), 6.0*x*(1.0-x)*ir );
+}
+
+vec4 terrainMapD( in vec2 p )
+{
+	const float sca = 0.0010;
+    const float amp = 300.0;
+    p *= sca;
+    vec3 e = fbmd_9( p + vec2(1.0,-2.0) , 8);
+    vec2 c = smoothstepd( -0.08, -0.01, e.x );
+    e.x = e.x + 0.15*c.x;
+    e.yz = e.yz + 0.15*c.y*e.yz;
+    e.x *= amp;
+    e.yz *= amp*sca;
+    return vec4( e.x, normalize( vec3(-e.y,1.0,-e.z) ) );
+}
+
+
+
+
 float map(vec3 p) {
     //vec3 rp = p;
     //vec3 rp = twist(p);
@@ -538,21 +766,48 @@ float map(vec3 p) {
     //return box(rp, 2.0 + pow(sin(p.x), C) + p.x/50.0);
 
 
-    float d = sdBox(p,vec3(1.0));
-    float s = 1.0;
-    for( int m=0; m<3; m++ ) {
-        vec3 a = mod( p*s, 2.0 )-1.0;
-        s *= 3.0;
-        vec3 r = abs(1.0 - 3.0*abs(a));
+    // --- menger sponge
+    //
+    //float d = sdBox(p,vec3(1.0));
+    //float s = 1.0;
+    //for( int m=0; m<3; m++ ) {
+        //vec3 a = mod( p*s, 2.0 )-1.0;
+        //s *= 3.0;
+        //vec3 r = abs(1.0 - 3.0*abs(a));
 
-        float da = max(r.x,r.y);
-        float db = max(r.y,r.z);
-        float dc = max(r.z,r.x);
-        float c = (min(da,min(db,dc))-1.0)/s;
+        //float da = max(r.x,r.y);
+        //float db = max(r.y,r.z);
+        //float dc = max(r.z,r.x);
+        //float c = (min(da,min(db,dc))-1.0)/s;
 
-        d = max(d,c);
+        //d = max(d,c);
+    //}
+    //return d;
+
+    //vec3 noise_value = vec3(0);
+    //noise_value += noised((p.xz - time) / (D * A)) * A; 
+    //noise_value += noised((p.xz - time) / B) * B; 
+    //noise_value += noised((p.xz - time) / C) * C; 
+    //noise_value += noised((p.xz - time) / D) * D; 
+
+    //vec3 noise_value = fbmd_9((p.xz - time) / 1000.0 + vec2(D, -2.0), 8) * 300.0;
+    vec3 noise_value = terrainMapD(p.xz - time*A).xyz;
+
+    float terrain = noise_value.x;
+
+    if (terrain < p.y) {
+        return (p.y - terrain);
     }
-    return d;
+    else {
+        return 0.0;
+    }
+
+}
+
+vec3 normaleRubata(in vec3 p) {
+    //vec3 noise_value = terrainMapD(p.xz - time*A).yzw;
+    //return normalize(vec3(-noise_value.y, 1, -noise_value.z));
+    return terrainMapD(p.xz - time*A).yzw;
 }
 
 //Adapted from: http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/#rotation-and-translation
@@ -598,7 +853,8 @@ vec4 raymarch(vec3 ro, vec3 rd) {
         float d = map(p);   
 
         if (d < 0.0001) {
-            vec3 n = calcNormal(p);
+            //vec3 n = calcNormal(p);
+            vec3 n = normaleRubata(p);
             float l = ka;
             l += max(0.0, kd * dot(normalize(_LightDir - p), n));
             vec3 h = normalize(normalize(_LightDir - p) + normalize(_CameraDir - p));
@@ -632,4 +888,5 @@ void main() {
     vec3 rd = camera(_CameraDir, vec3(0))*normalize(vec3(uv, 2.0));
 
     fragColor = raymarch(_CameraDir, rd);
+    //fragColor = vec4(snoise(uv*40.0));
 }    

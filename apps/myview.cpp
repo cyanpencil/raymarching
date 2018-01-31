@@ -53,14 +53,15 @@ struct app_state {
 
     //Fragment shader variables
     int max_raymarching_steps = 64;
-    float max_distance = 100;
+    float max_distance = 200;
     float step_size = 1;
     vec2f mouse = zero2f;
     vec3f mov = zero3f;
     float camera_distance = 3;
     float jitter_factor = 2;
+    float ka = 0.05, kd = 0.3, ks = 1.0;
 
-    float A = -100, B = 5, C = 2, D = 1;
+    float A = 1, B = 1, C = 1, D = 1;
 
 
     ~app_state() {
@@ -134,6 +135,9 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "step_size", app->step_size);
     pass_to_shader(app, "camera_distance", app->camera_distance);
     pass_to_shader(app, "jitter_factor", app->jitter_factor);
+    pass_to_shader(app, "ka", app->ka);
+    pass_to_shader(app, "kd", app->kd);
+    pass_to_shader(app, "ks", app->ks);
     pass_to_shader(app, "A", app->A);
     pass_to_shader(app, "B", app->B);
     pass_to_shader(app, "C", app->C);
@@ -172,13 +176,16 @@ inline void draw(gl_window* win) {
         draw_button_widget(win, "Yo ciao");
         draw_label_widget(win, std::to_string(app->fps), "FPS:");
         draw_value_widget(win, "Ray steps", app->max_raymarching_steps, 1, 200, 1);
-        draw_value_widget(win, "Max distance", app->max_distance, 0, 200, 1);
+        draw_value_widget(win, "Max distance", app->max_distance, 0, 3000, 1);
         draw_value_widget(win, "step size", app->step_size, 0, 1, 1);
         draw_value_widget(win, "jitter factor", app->jitter_factor, 0, 10, 1);
-        draw_value_widget(win, "A", app->A, 0, -1000, 1);
+        draw_value_widget(win, "ka", app->ka, 0, 1, 1);
+        draw_value_widget(win, "kd", app->kd, 0, 1, 1);
+        draw_value_widget(win, "ks", app->ks, 0, 1, 1);
+        draw_value_widget(win, "A", app->A, 0, 200, 1);
         draw_value_widget(win, "B", app->B, 0, 100, 1);
-        draw_value_widget(win, "C", app->C, 0, 10, 1);
-        draw_value_widget(win, "D", app->D, 0, 10, 1);
+        draw_value_widget(win, "C", app->C, 0, 50, 1);
+        draw_value_widget(win, "D", app->D, 0, 20, 1);
         draw_separator_widget(win);
     }
     end_widgets(win);
