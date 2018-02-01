@@ -33,6 +33,9 @@ uniform int shadows = 0;
 uniform int clouds = 0;
 uniform int gamma = 1;
 
+uniform int fbm_octaves = 8;
+uniform int sha_octaves = 8;
+
 
 
 
@@ -76,6 +79,21 @@ float hash2( vec2 p )
     return fract( p.x*p.y*(p.x+p.y) );
 }
 
+float noise( in vec2 x )
+{
+    vec2 p = floor(x);
+    vec2 w = fract(x);
+    vec2 u = w*w*w*(w*(w*6.0-15.0)+10.0);
+
+    float a = hash2(p+vec2(0,0));
+    float b = hash2(p+vec2(1,0));
+    float c = hash2(p+vec2(0,1));
+    float d = hash2(p+vec2(1,1));
+
+    return -1.0+2.0*( a + (b-a)*u.x + (c-a)*u.y + (a - b - c + d)*u.x*u.y );
+}
+
+
 vec3 noised2( in vec2 x )
 {
     vec2 p = floor(x);
@@ -100,6 +118,26 @@ vec3 noised2( in vec2 x )
 }
 
 
+
+mat2 m2 = mat2(  0.80,  0.60, -0.60,  0.80 );
+mat2 m2i = mat2( 0.80, -0.60, 0.60,  0.80 );
+
+float fbm_9( in vec2 x, int octaves)
+{
+    float f = 1.9;
+    float s = 0.55;
+    float a = 0.0;
+    float b = 0.5;
+    for( int i=0; i< octaves; i++ )
+    {
+        float n = noise(x);
+        a += b*n;
+        b *= s;
+        x = f*m2*x;
+    }
+	return a;
+}
+
 vec3 fbmd_9( in vec2 x , int octaves)
 {
     float f = 1.9;
@@ -108,8 +146,6 @@ vec3 fbmd_9( in vec2 x , int octaves)
     float b = 0.5;
     vec2  d = vec2(0.0);
     mat2  m = mat2(1.0,0.0,0.0,1.0);
-    mat2 m2 = mat2(  0.80,  0.60, -0.60,  0.80 );
-    mat2 m2i = mat2( 0.80, -0.60, 0.60,  0.80 );
     for( int i=0; i< octaves; i++ )
     {
         vec3 n = noised2(x);
@@ -138,7 +174,7 @@ vec3 renderSky( in vec3 ro, in vec3 rd )
         if( t>0.0 )
         {
             vec2 uv = (ro+t*rd).xz;
-            float cl = fbmd_9( uv*0.002 , 8).x;
+            float cl = fbmd_9( uv*0.002 , fbm_octaves).x;
             float dl = smoothstep(-0.2,0.6,cl);
             col = mix( col, vec3(1.0), 0.4*dl );
         }
@@ -435,12 +471,23 @@ vec2 smoothstepd( float a, float b, float x)
     return vec2( x*x*(3.0-2.0*x), 6.0*x*(1.0-x)*ir );
 }
 
+float terrainMap(in vec2 p, int octaves) {
+    const float sca = 0.0010;
+    const float amp = 300.0;
+    p *= sca;
+    float e = fbm_9(p + vec2(1.0, -2.0), octaves);
+    vec2 c = smoothstepd(-0.08, -0.01, e);
+    e = e + 0.15*c.x;
+    e *= amp;
+    return e;
+}
+
 vec4 terrainMapD( in vec2 p )
 {
 	const float sca = 0.0010;
     const float amp = 300.0;
     p *= sca;
-    vec3 e = fbmd_9( p + vec2(1.0,-2.0) , 8);
+    vec3 e = fbmd_9( p + vec2(1.0,-2.0) , fbm_octaves);
     vec2 c = smoothstepd( -0.08, -0.01, e.x );
     e.x = e.x + 0.15*c.x;
     e.yz = e.yz + 0.15*c.y*e.yz;
@@ -550,43 +597,44 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
     for (int i = 0; i < max_raymarching_steps; ++i) {
         if (t > max_distance) break;
         vec3 p = ro + rd * t; //point hit on the surface
-
-        vec4 noise_value = terrainMapD(p.xz - time*A);
-        float terrain = noise_value.x;
+        float terrain = terrainMap(p.xz - time*A, fbm_octaves);
         float d = p.y - terrain;
         if (d < 0.001 * t) { 
-            vec3 n = noise_value.yzw;
+            vec3 n = normaleRubata(p);
             float l = ka;
             bool sunlight = true;
 
 
+            float diffuse = clamp(kd * dot(kSunDir, n), 0.0, 1.0);
 
 
 
             //shadows
-            float sha = 1.0;
-            if (shadows > 0) {
-                vec3 myro = p;
+            float shadow = 1.0;
+            if (diffuse > 0.01 && shadows > 0) {
+                vec3 myro = p + kSunDir*5.0; //this constant is a bit random... must play with it
                 vec3 myrd = kSunDir;
-                float tt = 0.01;
+                float tt = 0.1;
                 for (int j = 0; j < max_raymarching_steps; j++) {
+                    if (tt > max_distance) break;
                     p = myro + myrd * tt; 
-                    noise_value = terrainMapD(p.xz - time*A);
-                    terrain = noise_value.x;
+                    terrain = terrainMap(p.xz - time*A, sha_octaves);
                     d = p.y - terrain;
-                    if (d < 0.001) {
-                        sha = 0.0;
+                    if (d < 0.001*tt) {
+                        shadow = 0.0;
                         break;
                     }
-                    sha = min(sha, softshadows*(d/tt));
-                    tt += step_size * d;
+                    shadow = min(shadow, softshadows*(d/tt));
+                    tt += 10.0*step_size * d;
                 }
             }
 
 
-            l += clamp(kd * dot(kSunDir, n), 0.0, 1.0) * sha;
+            l += diffuse * shadow;
+            if (ks > 0.01) {
             vec3 h = normalize(kSunDir + normalize(_CameraDir - p));
             l += ks * pow(max(dot(n , h), 0.0), blinn_phong_alpha);
+            }
             ret = vec4(vec3(l,l,l), 1);
 
             return ret;
@@ -646,7 +694,7 @@ void main() {
     if (mouse.y != 0.0) {
         _CameraDir.y = 5.0*(mouse.y / resolution.y - 0.5)*3.0;
         _CameraDir.z =-5.0*cos(mouse.x / resolution.x * 2.0 * PI);
-        _CameraDir.x = 5.0*sin(mouse.x / resolution.x * 2.0 * PI);
+        _CameraDir.x = -5.0*sin(mouse.x / resolution.x * 2.0 * PI);
     }
     _CameraDir *= camera_distance;
     vec3 rd = camera(_CameraDir, vec3(0))*normalize(vec3(uv, 2.0));

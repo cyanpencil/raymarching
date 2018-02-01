@@ -59,12 +59,14 @@ struct app_state {
     vec3f mov = zero3f;
     float camera_distance = 3;
     float jitter_factor = 2;
-    float ka = 0.05, kd = 0.2, ks = 0.25;
+    float ka = 0.05, kd = 0.2, ks = 0.0;
     float blinn_phong_alpha = 500;
     float softshadows = 5.0;
     bool shadows = false;
     bool clouds = false;
     bool gamma = true;
+    int fbm_octaves = 8;
+    int sha_octaves = 8;
 
     float A = 0, B = 1, C = 1, D = 1;
 
@@ -153,6 +155,8 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "shadows", app->shadows);
     pass_to_shader(app, "clouds", app->clouds);
     pass_to_shader(app, "gamma", app->gamma);
+    pass_to_shader(app, "fbm_octaves", app->fbm_octaves);
+    pass_to_shader(app, "sha_octaves", app->sha_octaves);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -202,8 +206,10 @@ inline void draw(gl_window* win) {
         draw_separator_widget(win);
         draw_value_widget(win, "shadows", app->shadows);
         if (app->shadows) draw_value_widget(win, "softshadows", app->softshadows, 0, 100, 1);
+        if (app->shadows) draw_value_widget(win, "sha_octaves", app->sha_octaves, 0, 14, 1);
         draw_value_widget(win, "clouds", app->clouds);
         draw_value_widget(win, "gamma", app->gamma);
+        draw_value_widget(win, "fbm_octaves", app->fbm_octaves, 0, 14, 1);
     }
     end_widgets(win);
 
