@@ -59,7 +59,10 @@ struct app_state {
     vec3f mov = zero3f;
     float camera_distance = 3;
     float jitter_factor = 2;
-    float ka = 0.05, kd = 0.3, ks = 1.0;
+    float ka = 0.05, kd = 0.5, ks = 0.35;
+    float blinn_phong_alpha = 500;
+    bool shadows = false;
+    bool clouds = false;
 
     float A = 1, B = 1, C = 1, D = 1;
 
@@ -120,6 +123,7 @@ inline void pass_to_shader(app_state* app, string name, vec3f value) {
     glUniform3f(uniform_name, value.x, value.y, value.z);
 }
 
+
 // Display a scene
 inline void shade_scene(app_state* app) {
     if (!is_program_valid(app->shstate->prog)) app->shstate->prog = make_my_program();
@@ -138,10 +142,13 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "ka", app->ka);
     pass_to_shader(app, "kd", app->kd);
     pass_to_shader(app, "ks", app->ks);
+    pass_to_shader(app, "blinn_phong_alpha", app->blinn_phong_alpha);
     pass_to_shader(app, "A", app->A);
     pass_to_shader(app, "B", app->B);
     pass_to_shader(app, "C", app->C);
     pass_to_shader(app, "D", app->D);
+    pass_to_shader(app, "shadows", app->shadows);
+    pass_to_shader(app, "clouds", app->clouds);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -173,20 +180,24 @@ inline void draw(gl_window* win) {
 
     if (begin_widgets(win, "yview")) {
         draw_separator_widget(win);
-        draw_button_widget(win, "Yo ciao");
         draw_label_widget(win, std::to_string(app->fps), "FPS:");
         draw_value_widget(win, "Ray steps", app->max_raymarching_steps, 1, 200, 1);
         draw_value_widget(win, "Max distance", app->max_distance, 0, 3000, 1);
         draw_value_widget(win, "step size", app->step_size, 0, 1, 1);
         draw_value_widget(win, "jitter factor", app->jitter_factor, 0, 10, 1);
+        draw_separator_widget(win);
         draw_value_widget(win, "ka", app->ka, 0, 1, 1);
         draw_value_widget(win, "kd", app->kd, 0, 1, 1);
         draw_value_widget(win, "ks", app->ks, 0, 1, 1);
+        draw_value_widget(win, "blinn phong", app->blinn_phong_alpha, 0, 1e4, 1);
+        draw_separator_widget(win);
         draw_value_widget(win, "A", app->A, 0, 200, 1);
         draw_value_widget(win, "B", app->B, 0, 100, 1);
         draw_value_widget(win, "C", app->C, 0, 50, 1);
         draw_value_widget(win, "D", app->D, 0, 20, 1);
         draw_separator_widget(win);
+        draw_value_widget(win, "shadows", app->shadows);
+        draw_value_widget(win, "clouds", app->clouds);
     }
     end_widgets(win);
 

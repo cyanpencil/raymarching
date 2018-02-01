@@ -18,14 +18,17 @@ uniform float step_size;
 uniform float A, B, C, D;
 uniform vec3 mov;
 
-vec3 _LightDir = vec3(0,500,0); //we are assuming infinite light intensity
+vec3 _LightDir = vec3(-0.624695,0.468521,-0.624695)*100000.0; //we are assuming infinite light intensity
 vec3 _CameraDir = vec3(0,5,5);
-float blinn_phong_alpha = 100;
+
+uniform float blinn_phong_alpha = 100;
 
 uniform float ka = 0.05;
 uniform float kd = 0.3;
 uniform float ks = 1.0;
 
+uniform int shadows = 0;
+uniform int clouds = 0;
 
 
 
@@ -36,175 +39,12 @@ uniform float ks = 1.0;
 
 
 
-//#define MaxSteps 30
-//#define MinimumDistance 0.0009
-//#define normalDistance     0.0002
-
-//#define Iterations 7
-////#define PI 3.141592
-//#define Scale 3.0
-//#define FieldOfView 1.0
-//#define Jitter 0.05
-//#define FudgeFactor 0.7
-//#define NonLinearPerspective 2.0
-//#define DebugNonlinearPerspective false
-
-//#define Ambient 0.32184
-//#define Diffuse 0.5
-//#define LightDir vec3(1.0)
-//#define LightColor vec3(1.0,1.0,0.858824)
-//#define LightDir2 vec3(1.0,-1.0,1.0)
-//#define LightColor2 vec3(0.0,0.333333,1.0)
-//#define Offset vec3(0.92858,0.92858,0.32858)
-
-//vec2 rotate(vec2 v, float a) {
-	//return vec2(cos(a)*v.x + sin(a)*v.y, -sin(a)*v.x + cos(a)*v.y);
-//}
-
-//// Two light sources. No specular 
-//vec3 getLight(in vec3 color, in vec3 normal, in vec3 dir) {
-	//vec3 lightDir = normalize(LightDir);
-	//float diffuse = max(0.0,dot(-normal, lightDir)); // Lambertian
-	
-	//vec3 lightDir2 = normalize(LightDir2);
-	//float diffuse2 = max(0.0,dot(-normal, lightDir2)); // Lambertian
-	
-	//return
-	//(diffuse*Diffuse)*(LightColor*color) +
-	//(diffuse2*Diffuse)*(LightColor2*color);
-//}
-
-
-//// DE: Infinitely tiled Menger IFS.
-////
-//// For more info on KIFS, see:
-//// http://www.fractalforums.com/3d-fractal-generation/kaleidoscopic-%28escape-time-ifs%29/
-//float DE(in vec3 z)
-//{
-	//// enable this to debug the non-linear perspective
-	//if (DebugNonlinearPerspective) {
-		//z = fract(z);
-		//float d=length(z.xy-vec2(0.5));
-		//d = min(d, length(z.xz-vec2(0.5)));
-		//d = min(d, length(z.yz-vec2(0.5)));
-		//return d-0.01;
-	//}
-	//// Folding 'tiling' of 3D space;
-	//z  = abs(1.0-mod(z,2.0));
-
-	//float d = 1000.0;
-	//for (int n = 0; n < Iterations; n++) {
-		//z.xy = rotate(z.xy,4.0+2.0*cos( time/8.0));		
-		//z = abs(z);
-		//if (z.x<z.y){ z.xy = z.yx;}
-		//if (z.x< z.z){ z.xz = z.zx;}
-		//if (z.y<z.z){ z.yz = z.zy;}
-		//z = Scale*z-Offset*(Scale-1.0);
-		//if( z.z<-0.5*Offset.z*(Scale-1.0))  z.z+=Offset.z*(Scale-1.0);
-		//d = min(d, length(z) * pow(Scale, float(-n)-1.0));
-	//}
-	
-	//return d-0.001;
-//}
-
-//// Finite difference normal
-//vec3 getNormal(in vec3 pos) {
-	//vec3 e = vec3(0.0,normalDistance,0.0);
-	
-	//return normalize(vec3(
-			//DE(pos+e.yxx)-DE(pos-e.yxx),
-			//DE(pos+e.xyx)-DE(pos-e.xyx),
-			//DE(pos+e.xxy)-DE(pos-e.xxy)
-			//)
-		//);
-//}
-
-//// Solid color 
-//vec3 getColor(vec3 normal, vec3 pos) {
-	//return vec3(1.0);
-//}
-
-
-//// Pseudo-random number
-//// From: lumina.sourceforge.net/Tutorials/Noise.html
-//float rand(vec2 co){
-	//return fract(cos(dot(co,vec2(4.898,7.23))) * 23421.631);
-//}
 
-//vec4 rayMarch(in vec3 from, in vec3 dir, in vec2 fragCoord) {
-	//// Add some noise to prevent banding
-	//float totalDistance = Jitter*rand(fragCoord.xy+vec2(time));
-	//vec3 dir2 = dir;
-	//float distance;
-	//int steps = 0;
-	//vec3 pos;
-	//for (int i=0; i < max_raymarching_steps; i++) {
-		//// Non-linear perspective applied here.
-		//dir.zy = rotate(dir2.zy,totalDistance*cos( time/4.0)*NonLinearPerspective);
-		
-		//pos = from + totalDistance * dir;
-		//distance = DE(pos)*FudgeFactor;
-		//totalDistance += distance*step_size;
-		//if (distance < MinimumDistance) break;
-		//steps = i;
-	//}
-	
-	//// 'AO' is based on number of steps.
-	//// Try to smooth the count, to combat banding.
-	//float smoothStep =   float(steps) + distance/MinimumDistance;
-	//float ao = 1.1-smoothStep/float(MaxSteps);
-	
-	//// Since our distance field is not signed,
-	//// backstep when calc'ing normal
-	//vec3 normal = getNormal(pos-dir*normalDistance*3.0);
-	
-	//vec3 color = getColor(normal, pos);
-	//vec3 light = getLight(color, normal, dir);
-	//color = (color*Ambient+light)*ao;
-	//return vec4(color,1.0);
-//}
 
-//void main()
-//{
-	//// Camera position (eye), and camera target
-	//vec3 camPos = 0.5*time*vec3(1.0,0.0,0.0);
-	////vec3 target = camPos + vec3(1.0,0.0*cos(time),0.0*sin(0.4*time));
-    //vec3 target = camPos + vec3(1.0,0.0,0.0);
-	//vec3 camUp  = vec3(0.0,1.0,0.0);
-	
-	//// Calculate orthonormal camera reference system
-	//vec3 camDir   = normalize(target-camPos); // direction for center ray
-	////camUp = normalize(camUp-dot(camDir,camUp)*camDir); // orthogonalize
-	//vec3 camRight = normalize(cross(camDir,camUp));
-	
-	//vec2 coord =-1.0+2.0*gl_FragCoord.xy/resolution.xy;
-	//coord.x *= resolution.x/resolution.y;
-	
-	//// Get direction for this pixel
-	//vec3 rayDir = normalize(camDir + (coord.x*camRight + coord.y*camUp)*FieldOfView);
-	
-	//fragColor = rayMarch(camPos, rayDir, gl_FragCoord.xy );
-//}
 
-//void main() {
-    //vec2 uv = -1.0 + 2.0*(gl_FragCoord.xy/resolution);
-    //uv.x *= resolution.x/resolution.y;
 
-    //vec3 col = vec3(0);
 
-    //float atime = time*0.3;
-    ////vec3 ro = 2.5*vec3(cos(atime), 0, -sin(atime));
-    ////camera movement
-    //if (mouse.y != 0.0) {
-        //_CameraDir.y = 5.0*(mouse.y / resolution.y - 0.5)*3.0;
-        //_CameraDir.z =-5.0*cos(mouse.x / resolution.x * 2.0 * PI);
-        //_CameraDir.x = 5.0*sin(mouse.x / resolution.x * 2.0 * PI);
-    //}
-    //_CameraDir *= camera_distance;
-    //vec3 rd = camera(_CameraDir, vec3(0))*normalize(vec3(uv, 2.0));
 
-    //fragColor = raymarch(_CameraDir, rd);
-//}    
 
 
 
@@ -217,99 +57,6 @@ uniform float ks = 1.0;
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//
-// Description : Array and textureless GLSL 2D simplex noise function.
-//      Author : Ian McEwan, Ashima Arts.
-//  Maintainer : stegu
-//     Lastmod : 20110822 (ijm)
-//     License : Copyright (C) 2011 Ashima Arts. All rights reserved.
-//               Distributed under the MIT License. See LICENSE file.
-//               https://github.com/ashima/webgl-noise
-//               https://github.com/stegu/webgl-noise
-//
-
-vec3 mod289(vec3 x) {
-  return x - floor(x * (1.0 / 289.0)) * 289.0;
-}
-
-vec2 mod289(vec2 x) {
-  return x - floor(x * (1.0 / 289.0)) * 289.0;
-}
-
-vec3 permute(vec3 x) {
-  return mod289(((x*34.0)+1.0)*x);
-}
-
-float snoise(vec2 v)
-  {
-  const vec4 C = vec4(0.211324865405187,  // (3.0-sqrt(3.0))/6.0
-                      0.366025403784439,  // 0.5*(sqrt(3.0)-1.0)
-                     -0.577350269189626,  // -1.0 + 2.0 * C.x
-                      0.024390243902439); // 1.0 / 41.0
-// First corner
-  vec2 i  = floor(v + dot(v, C.yy) );
-  vec2 x0 = v -   i + dot(i, C.xx);
-
-// Other corners
-  vec2 i1;
-  //i1.x = step( x0.y, x0.x ); // x0.x > x0.y ? 1.0 : 0.0
-  //i1.y = 1.0 - i1.x;
-  i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-  // x0 = x0 - 0.0 + 0.0 * C.xx ;
-  // x1 = x0 - i1 + 1.0 * C.xx ;
-  // x2 = x0 - 1.0 + 2.0 * C.xx ;
-  vec4 x12 = x0.xyxy + C.xxzz;
-  x12.xy -= i1;
-
-// Permutations
-  i = mod289(i); // Avoid truncation effects in permutation
-  vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
-        + i.x + vec3(0.0, i1.x, 1.0 ));
-
-  vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
-  m = m*m ;
-  m = m*m ;
-
-// Gradients: 41 points uniformly over a line, mapped onto a diamond.
-// The ring size 17*17 = 289 is close to a multiple of 41 (41*7 = 287)
-
-  vec3 x = 2.0 * fract(p * C.www) - 1.0;
-  vec3 h = abs(x) - 0.5;
-  vec3 ox = floor(x + 0.5);
-  vec3 a0 = x - ox;
-
-// Normalise gradients implicitly by scaling m
-// Approximation of: m *= inversesqrt( a0*a0 + h*h );
-  m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
-
-// Compute final noise value at P
-  vec3 g;
-  g.x  = a0.x  * x0.x  + h.x  * x0.y;
-  g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-  return 130.0 * dot(m, g);
-}
 
 
 
@@ -325,7 +72,6 @@ float hash2( vec2 p )
     p  = 50.0*fract( p*0.3183099 );
     return fract( p.x*p.y*(p.x+p.y) );
 }
-
 
 vec3 noised2( in vec2 x )
 {
@@ -351,10 +97,6 @@ vec3 noised2( in vec2 x )
 }
 
 
-const mat2 m2 = mat2(  0.80,  0.60, -0.60,  0.80 );
-const mat2 m2i = mat2( 0.80, -0.60, 0.60,  0.80 );
-
-// returns 3D fbm and its 3 derivatives
 vec3 fbmd_9( in vec2 x , int octaves)
 {
     float f = 1.9;
@@ -363,6 +105,8 @@ vec3 fbmd_9( in vec2 x , int octaves)
     float b = 0.5;
     vec2  d = vec2(0.0);
     mat2  m = mat2(1.0,0.0,0.0,1.0);
+    mat2 m2 = mat2(  0.80,  0.60, -0.60,  0.80 );
+    mat2 m2i = mat2( 0.80, -0.60, 0.60,  0.80 );
     for( int i=0; i< octaves; i++ )
     {
         vec3 n = noised2(x);
@@ -376,53 +120,38 @@ vec3 fbmd_9( in vec2 x , int octaves)
 }
 
 
+// ----- SKY FUNCTION BY INIGO QUIELEZ: https://www.shadertoy.com/view/4ttSWf
 
+const vec3  kSunDir = vec3(-0.624695,0.468521,-0.624695);
 
-
-
-
-
-
-
-// --- Noise function by inigo quielez
-vec2 hash( in vec2 x )  // replace this by something better
+vec3 renderSky( in vec3 ro, in vec3 rd )
 {
-    const vec2 k = vec2( 0.3183099, 0.3678794 );
-    x = x*k + k.yx;
-    return -1.0 + 2.0*fract( 16.0 * k*fract( x.x*x.y*(x.x+x.y)) );
+    // background sky     
+    vec3 col = 0.9*vec3(0.4,0.65,1.0) - rd.y*vec3(0.4,0.36,0.4);
+
+    // clouds
+    if (clouds > 0) {
+        float t = (1000.0-ro.y)/rd.y;
+        if( t>0.0 )
+        {
+            vec2 uv = (ro+t*rd).xz;
+            float cl = fbmd_9( uv*0.002 , 8).x;
+            float dl = smoothstep(-0.2,0.6,cl);
+            col = mix( col, vec3(1.0), 0.4*dl );
+        }
+    }
+    
+    // sun glare    
+    float sun = clamp( dot(kSunDir,rd), 0.0, 1.0 );
+    col += 0.6*vec3(1.0,0.6,0.3)*pow( sun, 32.0 );
+    
+    return col;
 }
 
 
-// return gradient noise (in x) and its derivatives (in yz)
-vec3 noised( in vec2 p )
-{
-    vec2 i = floor( p );
-    vec2 f = fract( p );
 
-#if 1
-    // quintic interpolation
-    vec2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
-    vec2 du = 30.0*f*f*(f*(f-2.0)+1.0);
-#else
-    // cubic interpolation
-    vec2 u = f*f*(3.0-2.0*f);
-    vec2 du = 6.0*f*(1.0-f);
-#endif    
-    
-    vec2 ga = hash( i + vec2(0.0,0.0) );
-    vec2 gb = hash( i + vec2(1.0,0.0) );
-    vec2 gc = hash( i + vec2(0.0,1.0) );
-    vec2 gd = hash( i + vec2(1.0,1.0) );
-    
-    float va = dot( ga, f - vec2(0.0,0.0) );
-    float vb = dot( gb, f - vec2(1.0,0.0) );
-    float vc = dot( gc, f - vec2(0.0,1.0) );
-    float vd = dot( gd, f - vec2(1.0,1.0) );
 
-    return vec3( va + u.x*(vb-va) + u.y*(vc-va) + u.x*u.y*(va-vb-vc+vd),   // value
-                 ga + u.x*(gb-ga) + u.y*(gc-ga) + u.x*u.y*(ga-gb-gc+gd) +  // derivatives
-                 du * (u.yx*(va-vb-vc+vd) + vec2(vb,vc) - va));
-}
+
 
 
 
@@ -669,35 +398,6 @@ float sdTorus_bulbus(vec3 p, vec2 t) {
     //In latex: \sqrt{(x - T_x)^2 + (y)^2} - T_y + e^{-100*\cos(atan2(y, x)/2 + t)^2 / 5}
 }
 
-
-float stupida(vec3 p) {
-    //return length(p) - 2.0 + sin(p.x * 10.0) / 50.0 + sin(p.y * 10.0) / 50.0;
-    //return length(p) - 2.0 + pow(sin(atan2(p.y, p.x)*20.0) / 5.0, 2) + pow(sin(atan2(p.z, p.x)*20.0) / 5.0, 2);
-
-    if (p.z <= -1.0 || p.z >= 1.0) return length(p) - 1.0;
-    if (p.x <= -1.0 || p.x >= 1.0) return length(p) - 1.0;
-    if (p.y <= -1.0 || p.y >= 1.0) return length(p) - 1.0;
-    float phi = acos(p.z);
-    float theta = atan2(p.y, p.x);
-
-    //return length(p) - 1.0 + sin(theta*B * sin(phi)) / 10.0 * sin(phi*20.0) / 10.0;
-
-    //prendo il punto 0,0,1
-    float theta_p = acos(p.y);
-    float theta_q = acos(0.0);
-    float phi_p = atan2(p.z, p.x);
-    float phi_q = atan2(0, 1.0);
-    float spheric_dist = acos(cos(phi_q - phi_p)*cos(theta_p)*cos(theta_q) + sin(theta_p)*sin(theta_q));
-
-    return length(p) - 1.0 + cos(spheric_dist * 20.0 + time) / 90.0;
-
-    //return length(p) - 1.0 + sin(theta*20.0 / sin(phi)) / 50.0;
-
-
-    //return length(p) - 1.0 + pow(sin(atan2(p.y, p.x)*20.0) / 5.0, 2) * sin(acos(p.z)*20.0) / 20.0;
-}
-
-
 float box (vec3 p, float l) {
     return max(max(abs(p.x) , abs(p.y)) , abs(p.z)) - l;
 }
@@ -835,10 +535,7 @@ mat3 camera(vec3 e, vec3 l) {
 
 
 
-
-
-//Adapted from: http://flafla2.github.io/2016/10/01/raymarching.html
-vec4 raymarch(vec3 ro, vec3 rd) {
+vec4 raymarch_terrain(vec3 ro, vec3 rd) {
     vec4 ret = vec4(0,0,0,0);
 
     float initial_jitter = 0.0; //camera will jitter when too close to an object
@@ -850,23 +547,87 @@ vec4 raymarch(vec3 ro, vec3 rd) {
     for (int i = 0; i < max_raymarching_steps; ++i) {
         if (t > max_distance) break;
         vec3 p = ro + rd * t; //point hit on the surface
-        float d = map(p);   
 
-        if (d < 0.0001) {
-            //vec3 n = calcNormal(p);
-            vec3 n = normaleRubata(p);
+        vec4 noise_value = terrainMapD(p.xz - time*A);
+        float terrain = noise_value.x;
+        float d = p.y - terrain;
+        if (d < 0.001 * t) { 
+            vec3 n = noise_value.yzw;
             float l = ka;
-            l += max(0.0, kd * dot(normalize(_LightDir - p), n));
-            vec3 h = normalize(normalize(_LightDir - p) + normalize(_CameraDir - p));
+            bool sunlight = true;
+
+
+
+
+            l += clamp(kd * dot(kSunDir, n), 0.0, 1.0);
+            vec3 h = normalize(kSunDir + normalize(_CameraDir - p));
             l += ks * pow(max(dot(n , h), 0.0), blinn_phong_alpha);
             ret = vec4(vec3(l,l,l), 1);
-            break;
+
+
+
+            //finire ombre
+            if (shadows > 0) {
+                vec3 myro = p;
+                vec3 myrd = kSunDir;
+                float tt = 0.01;
+                for (int j = 0; j < 30; j++) {
+                    p = myro + myrd * tt; 
+                    noise_value = terrainMapD(p.xz - time*A);
+                    terrain = noise_value.x;
+                    d = p.y - terrain;
+                    if (d < 0.001) {
+                        return vec4(0,0,0,0);
+                        break;
+                    }
+                    tt += step_size * d;
+                }
+            }
+            //finire ombre
+
+
+            return ret;
         }
 
         t += d*step_size;
     }
-    return ret;
+
+    vec3 sky = renderSky(ro, rd); 
+    return vec4(sky.xyz, 1.0);
 }
+
+
+
+
+//Adapted from: http://flafla2.github.io/2016/10/01/raymarching.html
+//vec4 raymarch(vec3 ro, vec3 rd) {
+    //vec4 ret = vec4(0,0,0,0);
+
+    //float initial_jitter = 0.0; //camera will jitter when too close to an object
+    //if (jitter_factor > 0.01) {
+        //initial_jitter = jitter_factor*rand(gl_FragCoord.xy + vec2(time));
+    //}
+
+    //float t = initial_jitter; // current distance traveled along ray
+    //for (int i = 0; i < max_raymarching_steps; ++i) {
+        //if (t > max_distance) break;
+        //vec3 p = ro + rd * t; //point hit on the surface
+        //float d = map(p);   
+
+        //if (d < 0.0001) {
+            //vec3 n = calcNormal(p);
+            //float l = ka;
+            //l += max(0.0, kd * dot(normalize(_LightDir - p), n));
+            //vec3 h = normalize(normalize(_LightDir - p) + normalize(_CameraDir - p));
+            //l += ks * pow(max(dot(n , h), 0.0), blinn_phong_alpha);
+            //ret = vec4(vec3(l,l,l), 1);
+            //break;
+        //}
+
+        //t += d*step_size;
+    //}
+    //return ret;
+//}
 
 
 
@@ -887,6 +648,7 @@ void main() {
     _CameraDir *= camera_distance;
     vec3 rd = camera(_CameraDir, vec3(0))*normalize(vec3(uv, 2.0));
 
-    fragColor = raymarch(_CameraDir, rd);
+    //fragColor = raymarch(_CameraDir, rd);
+    fragColor = raymarch_terrain(_CameraDir, rd);
     //fragColor = vec4(snoise(uv*40.0));
 }    
