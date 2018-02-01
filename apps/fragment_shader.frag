@@ -29,6 +29,7 @@ uniform float ks = 1.0;
 
 uniform int shadows = 0;
 uniform int clouds = 0;
+uniform int gamma = 1;
 
 
 
@@ -577,7 +578,7 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
                     terrain = noise_value.x;
                     d = p.y - terrain;
                     if (d < 0.001) {
-                        return vec4(0,0,0,0);
+                        return ret / 2.0;
                         break;
                     }
                     tt += step_size * d;
@@ -650,5 +651,6 @@ void main() {
 
     //fragColor = raymarch(_CameraDir, rd);
     fragColor = raymarch_terrain(_CameraDir, rd);
+    if (gamma > 0) fragColor = pow(fragColor, vec4(1.0 / 2.2));
     //fragColor = vec4(snoise(uv*40.0));
 }    

@@ -63,6 +63,7 @@ struct app_state {
     float blinn_phong_alpha = 500;
     bool shadows = false;
     bool clouds = false;
+    bool gamma = true;
 
     float A = 1, B = 1, C = 1, D = 1;
 
@@ -149,6 +150,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "D", app->D);
     pass_to_shader(app, "shadows", app->shadows);
     pass_to_shader(app, "clouds", app->clouds);
+    pass_to_shader(app, "gamma", app->gamma);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -198,6 +200,7 @@ inline void draw(gl_window* win) {
         draw_separator_widget(win);
         draw_value_widget(win, "shadows", app->shadows);
         draw_value_widget(win, "clouds", app->clouds);
+        draw_value_widget(win, "gamma", app->gamma);
     }
     end_widgets(win);
 
