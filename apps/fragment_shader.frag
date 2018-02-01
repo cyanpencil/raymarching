@@ -27,6 +27,8 @@ uniform float ka = 0.05;
 uniform float kd = 0.3;
 uniform float ks = 1.0;
 
+uniform float softshadows = 5.0;
+
 uniform int shadows = 0;
 uniform int clouds = 0;
 uniform int gamma = 1;
@@ -560,32 +562,32 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
 
 
-            l += clamp(kd * dot(kSunDir, n), 0.0, 1.0);
-            vec3 h = normalize(kSunDir + normalize(_CameraDir - p));
-            l += ks * pow(max(dot(n , h), 0.0), blinn_phong_alpha);
-            ret = vec4(vec3(l,l,l), 1);
 
-
-
-            //finire ombre
+            //shadows
+            float sha = 1.0;
             if (shadows > 0) {
                 vec3 myro = p;
                 vec3 myrd = kSunDir;
                 float tt = 0.01;
-                for (int j = 0; j < 30; j++) {
+                for (int j = 0; j < max_raymarching_steps; j++) {
                     p = myro + myrd * tt; 
                     noise_value = terrainMapD(p.xz - time*A);
                     terrain = noise_value.x;
                     d = p.y - terrain;
                     if (d < 0.001) {
-                        return ret / 2.0;
+                        sha = 0.0;
                         break;
                     }
+                    sha = min(sha, softshadows*(d/tt));
                     tt += step_size * d;
                 }
             }
-            //finire ombre
 
+
+            l += clamp(kd * dot(kSunDir, n), 0.0, 1.0) * sha;
+            vec3 h = normalize(kSunDir + normalize(_CameraDir - p));
+            l += ks * pow(max(dot(n , h), 0.0), blinn_phong_alpha);
+            ret = vec4(vec3(l,l,l), 1);
 
             return ret;
         }
