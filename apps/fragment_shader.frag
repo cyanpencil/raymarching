@@ -634,17 +634,17 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
         float d = p.y - terrain;
         if (d < 0.002 * t) { 
             vec3 n = normaleRubata(p);
-            float l = ka;
+            vec3 col = vec3(ka);
             bool sunlight = true;
 
 
-            float diffuse = clamp(kd * dot(kSunDir, n), 0.0, 1.0);
+            float diffuse_sun = clamp(kd * dot(kSunDir, n), 0.0, 1.0);
             //float specular = clamp(ks * pow(max(dot(n , normalize(kSunDir + normalize(_CameraDir - p))), 0.0), blinn_phong_alpha), 0.0, 1.0);
 
 
             //shadows
             float shadow = 1.0;
-            if (diffuse > 0.01 && shadows > 0) {
+            if (diffuse_sun > 0.01 && shadows > 0) {
                 vec3 myro = p + kSunDir*15.0; //Start a bit higher than terrain. Helps when sha_octaves is low (< 5)
                 vec3 myrd = kSunDir;
                 float tt = 0.1;
@@ -663,10 +663,22 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
             }
 
 
-            l += diffuse * shadow;
-            //l += specular
+            col += diffuse_sun * vec3(1.64, 1.27, 0.99) * pow(vec3(shadow), vec3(1.0, 1.2, 1.5));
 
-            vec3 col = vec3(l);
+            float indirect_sun = clamp(dot(n, normalize(kSunDir*vec3(-1.0, 0.0, -1.0))), 0.0, 1.0);
+
+            col += indirect_sun * vec3(0.40, 0.28, 0.20) * 0.16; // MULTIPLY PER AMBIENT OCCLUSION HERE
+
+            float diffuse_sky = clamp(0.5 + 0.5*n.y, 0.0, 1.0);
+
+
+            //MUST SELECT BETTER COLOR FOR SKY
+             //MUST SELECT BETTER COLOR FOR SKY
+            col += diffuse_sky * vec3(0.596, 0.282, 0.086) * 0.2;  //MUST SELECT BETTER COLOR FOR SKY // MULTIPLY PER AMBIENT OCCLUSION HERE
+            //MUST SELECT BETTER COLOR FOR SKY
+            //MUST SELECT BETTER COLOR FOR SKY
+
+            //l += specular
 
             col = applyFog(col, t, rd, kSunDir);
 

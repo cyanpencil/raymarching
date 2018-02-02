@@ -68,7 +68,7 @@ struct app_state {
     bool gamma = true;
     int fbm_octaves = 11;
     int sha_octaves = 6;
-    float sha_stepsize = 5.0;
+    float sha_stepsize = 4.0;
     float fog = 0.3;
     float sun_dispersion = 0.5;
 
@@ -214,11 +214,13 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "E", app->E, 0, 2, 1);
         draw_separator_widget(win);
         draw_value_widget(win, "shadows", app->shadows);
+        ImGui::SameLine();
+        draw_value_widget(win, "clouds", app->clouds);
+        ImGui::SameLine();
+        draw_value_widget(win, "gamma", app->gamma);
         if (app->shadows) draw_value_widget(win, "softshadows", app->softshadows, 0, 20, 1);
         if (app->shadows) draw_value_widget(win, "sha_octaves", app->sha_octaves, 0, 14, 1);
         if (app->shadows) draw_value_widget(win, "sha_stepsize", app->sha_stepsize, 0, 50, 1);
-        draw_value_widget(win, "clouds", app->clouds);
-        draw_value_widget(win, "gamma", app->gamma);
         draw_value_widget(win, "fbm_octaves", app->fbm_octaves, 0, 14, 1);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Number of noise octaves to generate terrain");
         draw_value_widget(win, "fog", app->fog, 0, 1, 1);
