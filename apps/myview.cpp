@@ -30,6 +30,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "../yocto/yocto_gl.h"
+#include "../yocto/ext/imgui/imgui.h"
 using namespace ygl;
 
 // ---------------------------------------------------------------------------
@@ -61,12 +62,13 @@ struct app_state {
     float jitter_factor = 2;
     float ka = 0.05, kd = 0.2, ks = 0.0;
     float blinn_phong_alpha = 500;
-    float softshadows = 5.0;
+    float softshadows = 3.0;
     bool shadows = false;
     bool clouds = false;
     bool gamma = true;
     int fbm_octaves = 8;
-    int sha_octaves = 8;
+    int sha_octaves = 6;
+    float sha_stepsize = 5.0;
 
     float A = 0, B = 1, C = 1, D = 1;
 
@@ -157,6 +159,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "gamma", app->gamma);
     pass_to_shader(app, "fbm_octaves", app->fbm_octaves);
     pass_to_shader(app, "sha_octaves", app->sha_octaves);
+    pass_to_shader(app, "sha_stepsize", app->sha_stepsize);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -190,7 +193,7 @@ inline void draw(gl_window* win) {
         draw_separator_widget(win);
         draw_label_widget(win, std::to_string(app->fps), "FPS:");
         draw_value_widget(win, "Ray steps", app->max_raymarching_steps, 1, 200, 1);
-        draw_value_widget(win, "Max distance", app->max_distance, 0, 3000, 1);
+        draw_value_widget(win, "Max distance", app->max_distance, 0, 10000, 1);
         draw_value_widget(win, "step size", app->step_size, 0, 1, 1);
         draw_value_widget(win, "jitter factor", app->jitter_factor, 0, 10, 1);
         draw_separator_widget(win);
@@ -205,11 +208,13 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "D", app->D, 0, 20, 1);
         draw_separator_widget(win);
         draw_value_widget(win, "shadows", app->shadows);
-        if (app->shadows) draw_value_widget(win, "softshadows", app->softshadows, 0, 100, 1);
+        if (app->shadows) draw_value_widget(win, "softshadows", app->softshadows, 0, 20, 1);
         if (app->shadows) draw_value_widget(win, "sha_octaves", app->sha_octaves, 0, 14, 1);
+        if (app->shadows) draw_value_widget(win, "sha_stepsize", app->sha_stepsize, 0, 50, 1);
         draw_value_widget(win, "clouds", app->clouds);
         draw_value_widget(win, "gamma", app->gamma);
         draw_value_widget(win, "fbm_octaves", app->fbm_octaves, 0, 14, 1);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Number of noise octaves to generate terrain");
     }
     end_widgets(win);
 
@@ -251,7 +256,7 @@ inline void run_ui(app_state* app, int w, int h, const string& title) {
             auto rotate = zero2f;
             switch (mouse_button) {
                 case 1: app->mouse = mouse_pos; break;
-                case 2: app->camera_distance += (mouse_pos.x - mouse_last.x) / 40.0f;
+                case 2: app->camera_distance += (mouse_pos.x - mouse_last.x) / 10.0f;
                     break;
                 case 3: pan = (mouse_pos - mouse_last) / 100.0f; break;
                 default: break;

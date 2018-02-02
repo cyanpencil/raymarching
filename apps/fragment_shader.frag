@@ -35,6 +35,7 @@ uniform int gamma = 1;
 
 uniform int fbm_octaves = 8;
 uniform int sha_octaves = 8;
+uniform float sha_stepsize = 1.0;
 
 
 
@@ -122,7 +123,7 @@ vec3 noised2( in vec2 x )
 mat2 m2 = mat2(  0.80,  0.60, -0.60,  0.80 );
 mat2 m2i = mat2( 0.80, -0.60, 0.60,  0.80 );
 
-float fbm_9( in vec2 x, int octaves)
+float fbm( in vec2 x, int octaves)
 {
     float f = 1.9;
     float s = 0.55;
@@ -138,7 +139,7 @@ float fbm_9( in vec2 x, int octaves)
 	return a;
 }
 
-vec3 fbmd_9( in vec2 x , int octaves)
+vec3 fbmd( in vec2 x , int octaves)
 {
     float f = 1.9;
     float s = 0.55;
@@ -174,7 +175,7 @@ vec3 renderSky( in vec3 ro, in vec3 rd )
         if( t>0.0 )
         {
             vec2 uv = (ro+t*rd).xz;
-            float cl = fbmd_9( uv*0.002 , fbm_octaves).x;
+            float cl = fbm( uv*0.001 + vec2(-100.0, 20.0) , fbm_octaves);
             float dl = smoothstep(-0.2,0.6,cl);
             col = mix( col, vec3(1.0), 0.4*dl );
         }
@@ -183,8 +184,50 @@ vec3 renderSky( in vec3 ro, in vec3 rd )
     // sun glare    
     float sun = clamp( dot(kSunDir,rd), 0.0, 1.0 );
     col += 0.6*vec3(1.0,0.6,0.3)*pow( sun, 32.0 );
+
+    //horizon
+    col = mix( col, 0.68*vec3(0.4,0.65,1.0), pow( 1.0-max(rd.y,0.0), 16.0 ) );
     
     return col;
+}
+
+
+
+// ---- OTHER THINGS BY INIGO QUIELEZ
+
+// return smoothstep and its derivative
+vec2 smoothstepd( float a, float b, float x)
+{
+    if( x<a ) return vec2( 0.0, 0.0 );
+    if( x>b ) return vec2( 1.0, 0.0 );
+    float ir = 1.0/(b-a);
+    x = (x-a)*ir;
+    return vec2( x*x*(3.0-2.0*x), 6.0*x*(1.0-x)*ir );
+}
+
+float terrainMap(in vec2 p, int octaves) {
+    const float sca = 0.0010;
+    const float amp = 300.0;
+    p *= sca;
+    float e = fbm(p + vec2(1.0, -2.0), octaves);
+    vec2 c = smoothstepd(-0.08, -0.01, e);
+    e = e + 0.15*c.x;
+    e *= amp;
+    return e;
+}
+
+vec4 terrainMapD( in vec2 p )
+{
+    const float sca = 0.0010;
+    const float amp = 300.0;
+    p *= sca;
+    vec3 e = fbmd( p + vec2(1.0,-2.0) , fbm_octaves);
+    vec2 c = smoothstepd( -0.08, -0.01, e.x );
+    e.x = e.x + 0.15*c.x;
+    e.yz = e.yz + 0.15*c.y*e.yz;
+    e.x *= amp;
+    e.yz *= amp*sca;
+    return vec4( e.x, normalize( vec3(-e.y,1.0,-e.z) ) );
 }
 
 
@@ -461,41 +504,6 @@ float sdCross( in vec3 p ) {
 
 
 
-// return smoothstep and its derivative
-vec2 smoothstepd( float a, float b, float x)
-{
-	if( x<a ) return vec2( 0.0, 0.0 );
-	if( x>b ) return vec2( 1.0, 0.0 );
-    float ir = 1.0/(b-a);
-    x = (x-a)*ir;
-    return vec2( x*x*(3.0-2.0*x), 6.0*x*(1.0-x)*ir );
-}
-
-float terrainMap(in vec2 p, int octaves) {
-    const float sca = 0.0010;
-    const float amp = 300.0;
-    p *= sca;
-    float e = fbm_9(p + vec2(1.0, -2.0), octaves);
-    vec2 c = smoothstepd(-0.08, -0.01, e);
-    e = e + 0.15*c.x;
-    e *= amp;
-    return e;
-}
-
-vec4 terrainMapD( in vec2 p )
-{
-	const float sca = 0.0010;
-    const float amp = 300.0;
-    p *= sca;
-    vec3 e = fbmd_9( p + vec2(1.0,-2.0) , fbm_octaves);
-    vec2 c = smoothstepd( -0.08, -0.01, e.x );
-    e.x = e.x + 0.15*c.x;
-    e.yz = e.yz + 0.15*c.y*e.yz;
-    e.x *= amp;
-    e.yz *= amp*sca;
-    return vec4( e.x, normalize( vec3(-e.y,1.0,-e.z) ) );
-}
-
 
 
 
@@ -540,7 +548,7 @@ float map(vec3 p) {
     //noise_value += noised((p.xz - time) / C) * C; 
     //noise_value += noised((p.xz - time) / D) * D; 
 
-    //vec3 noise_value = fbmd_9((p.xz - time) / 1000.0 + vec2(D, -2.0), 8) * 300.0;
+    //vec3 noise_value = fbmd((p.xz - time) / 1000.0 + vec2(D, -2.0), 8) * 300.0;
     vec3 noise_value = terrainMapD(p.xz - time*A).xyz;
 
     float terrain = noise_value.x;
@@ -599,20 +607,20 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
         vec3 p = ro + rd * t; //point hit on the surface
         float terrain = terrainMap(p.xz - time*A, fbm_octaves);
         float d = p.y - terrain;
-        if (d < 0.001 * t) { 
+        if (d < 0.002 * t) { 
             vec3 n = normaleRubata(p);
             float l = ka;
             bool sunlight = true;
 
 
             float diffuse = clamp(kd * dot(kSunDir, n), 0.0, 1.0);
-
+            //float specular = clamp(ks * pow(max(dot(n , normalize(kSunDir + normalize(_CameraDir - p))), 0.0), blinn_phong_alpha), 0.0, 1.0);
 
 
             //shadows
             float shadow = 1.0;
             if (diffuse > 0.01 && shadows > 0) {
-                vec3 myro = p + kSunDir*5.0; //this constant is a bit random... must play with it
+                vec3 myro = p + kSunDir*15.0; //Start a bit higher than terrain. Helps when sha_octaves is low (< 5)
                 vec3 myrd = kSunDir;
                 float tt = 0.1;
                 for (int j = 0; j < max_raymarching_steps; j++) {
@@ -625,16 +633,13 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
                         break;
                     }
                     shadow = min(shadow, softshadows*(d/tt));
-                    tt += 10.0*step_size * d;
+                    tt += sha_stepsize*step_size * d;
                 }
             }
 
 
             l += diffuse * shadow;
-            if (ks > 0.01) {
-            vec3 h = normalize(kSunDir + normalize(_CameraDir - p));
-            l += ks * pow(max(dot(n , h), 0.0), blinn_phong_alpha);
-            }
+            //l += specular
             ret = vec4(vec3(l,l,l), 1);
 
             return ret;
@@ -686,14 +691,10 @@ void main() {
     vec2 uv = -1.0 + 2.0*(gl_FragCoord.xy/resolution);
     uv.x *= resolution.x/resolution.y;
 
-    vec3 col = vec3(0);
-
-    float atime = time*0.3;
-    //vec3 ro = 2.5*vec3(cos(atime), 0, -sin(atime));
     //camera movement
     if (mouse.y != 0.0) {
-        _CameraDir.y = 5.0*(mouse.y / resolution.y - 0.5)*3.0;
-        _CameraDir.z =-5.0*cos(mouse.x / resolution.x * 2.0 * PI);
+        _CameraDir.y =  5.0*(mouse.y / resolution.y - 0.5)*3.0;
+        _CameraDir.z = -5.0*cos(mouse.x / resolution.x * 2.0 * PI);
         _CameraDir.x = -5.0*sin(mouse.x / resolution.x * 2.0 * PI);
     }
     _CameraDir *= camera_distance;
@@ -702,5 +703,5 @@ void main() {
     //fragColor = raymarch(_CameraDir, rd);
     fragColor = raymarch_terrain(_CameraDir, rd);
     if (gamma > 0) fragColor = pow(fragColor, vec4(1.0 / 2.2));
-    //fragColor = vec4(snoise(uv*40.0));
+    //fragColor = vec4(fbm(uv*40.0, fbm_octaves));
 }    
