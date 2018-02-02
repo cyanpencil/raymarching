@@ -248,12 +248,11 @@ vec4 terrainMapD( in vec2 p )
 // ----- FOG FUNCTION ADAPTED FROM INIGO QUIELEZ: http://www.iquilezles.org/www/articles/fog/fog.htm
 vec3 applyFog(in vec3 rgb, in float dist, in vec3  rayDir, in vec3  sunDir )
 {
-    float fogAmount = 1.0 - exp( -(dist*dist)*((fog*fog) / 200000.0) );
+    float fogAmount = 1.0 - exp( -(dist*dist/max_distance)*((fog*fog) / 200.0) );
     float sunAmount = clamp( dot( rayDir, sunDir ), 0.0, 1.0 );
     vec3 fogColor  = mix( vec3(0.5,0.6,0.7), // bluish
             vec3(1.0,0.9,0.7), // yellowish
             pow(sunAmount, (0.5/(sun_dispersion)) * 8.0 * ((dist) / 1000.0)) );
-
     return mix(rgb, fogColor, fogAmount );
 }
 
@@ -671,8 +670,9 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
             col = applyFog(col, t, rd, kSunDir);
 
-            if (t / max_distance > 0.8) 
-                col = mix(col, renderSky(ro, rd), pow(t / max_distance, D) * E);
+            float alpha = pow(t / max_distance, 2.5);
+            if (alpha > 0.2) 
+                col = mix(col, renderSky(ro, rd), alpha - 0.2);
             
             return vec4(col, 1);
         }
