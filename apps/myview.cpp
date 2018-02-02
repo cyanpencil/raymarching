@@ -54,7 +54,7 @@ struct app_state {
 
     //Fragment shader variables
     int max_raymarching_steps = 64;
-    float max_distance = 400;
+    float max_distance = 1000;
     float step_size = 1;
     vec2f mouse = zero2f;
     vec3f mov = zero3f;
@@ -66,11 +66,11 @@ struct app_state {
     bool shadows = false;
     bool clouds = false;
     bool gamma = true;
-    int fbm_octaves = 8;
+    int fbm_octaves = 11;
     int sha_octaves = 6;
     float sha_stepsize = 5.0;
 
-    float A = 0, B = 1, C = 1, D = 1;
+    float A = 0, B = 1, C = 1, D = 1, E = 1;
 
 
     ~app_state() {
@@ -153,6 +153,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "B", app->B);
     pass_to_shader(app, "C", app->C);
     pass_to_shader(app, "D", app->D);
+    pass_to_shader(app, "E", app->E);
     pass_to_shader(app, "softshadows", app->softshadows);
     pass_to_shader(app, "shadows", app->shadows);
     pass_to_shader(app, "clouds", app->clouds);
@@ -206,6 +207,7 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "B", app->B, 0, 100, 1);
         draw_value_widget(win, "C", app->C, 0, 50, 1);
         draw_value_widget(win, "D", app->D, 0, 20, 1);
+        draw_value_widget(win, "E", app->E, 0, 2, 1);
         draw_separator_widget(win);
         draw_value_widget(win, "shadows", app->shadows);
         if (app->shadows) draw_value_widget(win, "softshadows", app->softshadows, 0, 20, 1);

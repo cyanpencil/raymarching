@@ -15,7 +15,7 @@ uniform int max_raymarching_steps; //64 by default
 uniform float max_distance; //100 by default
 uniform float step_size;
 
-uniform float A, B, C, D;
+uniform float A, B, C, D, E;
 uniform vec3 mov;
 
 vec3 _LightDir = vec3(-0.624695,0.468521,-0.624695)*100000.0; //we are assuming infinite light intensity
@@ -167,7 +167,8 @@ const vec3  kSunDir = vec3(-0.624695,0.468521,-0.624695);
 vec3 renderSky( in vec3 ro, in vec3 rd )
 {
     // background sky     
-    vec3 col = 0.9*vec3(0.4,0.65,1.0) - rd.y*vec3(0.4,0.36,0.4);
+    vec3 col = vec3(0.2,0.5,0.85)*1.1 - rd.y*rd.y*0.5;
+    col = mix( col, 0.85*vec3(0.7,0.75,0.85), pow( 1.0-max(rd.y,0.0), 4.0 ) );
 
     // clouds
     if (clouds > 0) {
@@ -182,12 +183,14 @@ vec3 renderSky( in vec3 ro, in vec3 rd )
     }
     
     // sun glare    
-    float sun = clamp( dot(kSunDir,rd), 0.0, 1.0 );
-    col += 0.6*vec3(1.0,0.6,0.3)*pow( sun, 32.0 );
+    float sundot = clamp(dot(kSunDir,rd), 0.0, 1.0 );
+    col += 0.25*vec3(1.0,0.7,0.4)*pow( sundot,5.0 );
+    col += 0.25*vec3(1.0,0.8,0.6)*pow( sundot,64.0 );
+    col += 0.2*vec3(1.0,0.8,0.6)*pow( sundot,512.0 );
 
     //horizon
-    col = mix( col, 0.68*vec3(0.4,0.65,1.0), pow( 1.0-max(rd.y,0.0), 16.0 ) );
-    
+    col = mix( col, 0.68*vec3(0.4,0.65,1.0), pow( 1.0-max(rd.y,0.0), 32.0 ) );
+
     return col;
 }
 
@@ -206,25 +209,31 @@ vec2 smoothstepd( float a, float b, float x)
 }
 
 float terrainMap(in vec2 p, int octaves) {
-    const float sca = 0.0010;
-    const float amp = 300.0;
+    float sca = 0.0010 * E;
+    float amp = 300.0 * D;
     p *= sca;
-    float e = fbm(p + vec2(1.0, -2.0), octaves);
-    vec2 c = smoothstepd(-0.08, -0.01, e);
-    e = e + 0.15*c.x;
+    float e = fbm(p + B*vec2(1.0, -2.0), octaves);
+
+    //canyons -- removed for now
+    //float c = smoothstep(-0.08 , -0.01, e);
+    //e = e + 0.15*c;
+
     e *= amp;
     return e;
 }
 
 vec4 terrainMapD( in vec2 p )
 {
-    const float sca = 0.0010;
-    const float amp = 300.0;
+    float sca = 0.0010 * E;
+    float amp = 300.0 * D;
     p *= sca;
-    vec3 e = fbmd( p + vec2(1.0,-2.0) , fbm_octaves);
-    vec2 c = smoothstepd( -0.08, -0.01, e.x );
-    e.x = e.x + 0.15*c.x;
-    e.yz = e.yz + 0.15*c.y*e.yz;
+    vec3 e = fbmd( p + B*vec2(1.0,-2.0) , fbm_octaves);
+
+    //canyons -- removed for now
+    //vec2 c = smoothstepd( -0.08, -0.01, e.x );
+    //e.x = e.x + 0.15*c.x;
+    //e.yz = e.yz + 0.15*c.y*e.yz;
+
     e.x *= amp;
     e.yz *= amp*sca;
     return vec4( e.x, normalize( vec3(-e.y,1.0,-e.z) ) );
