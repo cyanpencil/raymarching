@@ -18,7 +18,8 @@ uniform float step_size;
 uniform float A, B, C, D, E;
 uniform vec3 mov;
 
-vec3 _LightDir = vec3(-0.624695,0.468521,-0.624695)*100000.0; //we are assuming infinite light intensity
+const vec3  kSunDir = normalize(vec3(-0.624695,0.168521,-0.624695));
+vec3 _LightDir = kSunDir*100000.0; //we are assuming infinite light intensity
 vec3 _CameraDir = vec3(0,5,5);
 
 uniform float blinn_phong_alpha = 100;
@@ -164,7 +165,6 @@ vec3 fbmd( in vec2 x , int octaves)
 
 // ----- SKY FUNCTION BY INIGO QUIELEZ: https://www.shadertoy.com/view/4ttSWf
 
-const vec3  kSunDir = vec3(-0.624695,0.468521,-0.624695);
 
 vec3 renderSky( in vec3 ro, in vec3 rd )
 {
@@ -244,11 +244,14 @@ vec4 terrainMapD( in vec2 p )
 
 
 // ----- FOG FUNCTION ADAPTED FROM INIGO QUIELEZ: http://www.iquilezles.org/www/articles/fog/fog.htm
-vec3 applyFog(in vec3  rgb, in float dist)
+vec3 applyFog(in vec3 rgb, in float dist, in vec3  rayDir, in vec3  sunDir )
 {
-    float fogAmount = 1.0 - exp( -dist*(fog / 250.0) );
-    vec3  fogColor  = vec3(0.5,0.6,0.7);
-    return mix( rgb, fogColor, fogAmount );
+    float fogAmount = 1.0 - exp( -(dist*dist)*((fog*fog) / 200000.0) );
+    float sunAmount = max( dot( rayDir, sunDir ), 0.0 );
+    vec3  fogColor  = mix( vec3(0.5,0.6,0.7), // bluish
+                           vec3(1.0,0.9,0.7), // yellowish
+                           pow(sunAmount,8.0) );
+    return mix(rgb, fogColor, fogAmount );
 }
 
 
@@ -662,7 +665,7 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
             //l += specular
             ret = vec4(vec3(l,l,l), 1);
             
-            ret = vec4(applyFog(ret.xyz, t), 1);
+            ret = vec4(applyFog(ret.xyz, t, rd, kSunDir), 1);
 
             return ret;
         }

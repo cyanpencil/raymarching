@@ -69,7 +69,7 @@ struct app_state {
     int fbm_octaves = 11;
     int sha_octaves = 6;
     float sha_stepsize = 5.0;
-    float fog = 1.0;
+    float fog = 0.3;
 
     float A = 0, B = 1, C = 1, D = 1, E = 1;
 
