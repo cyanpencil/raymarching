@@ -7,6 +7,7 @@
 out vec4 fragColor;
 
 uniform vec2 resolution;
+uniform int AA;
 uniform vec2 mouse;
 uniform float camera_distance;
 uniform float time;
@@ -732,8 +733,6 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
 
 void main() {
-    vec2 uv = -1.0 + 2.0*(gl_FragCoord.xy/resolution);
-    uv.x *= resolution.x/resolution.y;
 
     //camera movement
     if (mouse.y != 0.0) {
@@ -742,10 +741,24 @@ void main() {
         _CameraDir.x = -5.0*sin(mouse.x / resolution.x * 2.0 * PI);
     }
     _CameraDir *= camera_distance;
-    vec3 rd = camera(_CameraDir, vec3(0))*normalize(vec3(uv, 2.0));
 
-    //fragColor = raymarch(_CameraDir, rd);
-    fragColor = raymarch_terrain(_CameraDir, rd);
+    fragColor = vec4(0);
+
+    for (int m = 0; m < AA; m++) {
+        for (int n = 0; n < AA; n++) {
+            vec2 uv = -1.0 + 2.0*(gl_FragCoord.xy/resolution) + vec2(n * (1.0/(resolution.x * AA)), m * (1.0/(resolution.y * AA)));
+            uv.x *= resolution.x/resolution.y;
+
+            vec3 rd = camera(_CameraDir, vec3(0))*normalize(vec3(uv, 2.0));
+
+            fragColor += raymarch_terrain(_CameraDir, rd);
+            //fragColor = raymarch(_CameraDir, rd);
+            //fragColor = vec4(fbm(uv*40.0, fbm_octaves));
+        }
+    }
+
+
+
+    fragColor /= float(AA*AA);
     if (gamma > 0) fragColor = pow(fragColor, vec4(1.0 / 2.2));
-    //fragColor = vec4(fbm(uv*40.0, fbm_octaves));
 }    

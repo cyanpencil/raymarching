@@ -53,6 +53,7 @@ struct app_state {
     float last_frame;
 
     //Fragment shader variables
+    int AA = 1;
     int max_raymarching_steps = 64;
     float max_distance = 1000;
     float step_size = 1;
@@ -62,13 +63,13 @@ struct app_state {
     float jitter_factor = 2;
     float ka = 0.05, kd = 0.2, ks = 0.0;
     float blinn_phong_alpha = 500;
-    float softshadows = 3.0;
+    float softshadows = 8.0;
     bool shadows = false;
     bool clouds = false;
     bool gamma = true;
     int fbm_octaves = 11;
     int sha_octaves = 6;
-    float sha_stepsize = 4.0;
+    float sha_stepsize = 3.0;
     float fog = 0.3;
     float sun_dispersion = 0.5;
 
@@ -165,6 +166,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "sha_stepsize", app->sha_stepsize);
     pass_to_shader(app, "fog", app->fog);
     pass_to_shader(app, "sun_dispersion", app->sun_dispersion);
+    pass_to_shader(app, "AA", app->AA);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -200,6 +202,7 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "Ray steps", app->max_raymarching_steps, 1, 200, 1);
         draw_value_widget(win, "Max distance", app->max_distance, 0, 10000, 1);
         draw_value_widget(win, "step size", app->step_size, 0, 1, 1);
+        draw_value_widget(win, "AA", app->AA, 1, 3, 1);
         draw_value_widget(win, "jitter factor", app->jitter_factor, 0, 10, 1);
         draw_separator_widget(win);
         draw_value_widget(win, "ka", app->ka, 0, 1, 1);
