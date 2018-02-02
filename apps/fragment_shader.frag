@@ -39,6 +39,8 @@ uniform int sha_octaves = 8;
 uniform float sha_stepsize = 1.0;
 
 uniform float fog = 1.0;
+uniform float sun_dispersion = 1.0;
+
 
 
 
@@ -211,8 +213,8 @@ vec2 smoothstepd( float a, float b, float x)
 }
 
 float terrainMap(in vec2 p, int octaves) {
-    float sca = 0.0010 * E;
-    float amp = 300.0 * D;
+    float sca = 0.0010;
+    float amp = 300.0;
     p *= sca;
     float e = fbm(p + vec2(1.0, -2.0), octaves);
 
@@ -226,10 +228,10 @@ float terrainMap(in vec2 p, int octaves) {
 
 vec4 terrainMapD( in vec2 p )
 {
-    float sca = 0.0010 * E;
-    float amp = 300.0 * D;
+    float sca = 0.0010;
+    float amp = 300.0;
     p *= sca;
-    vec3 e = fbmd( p + B*vec2(1.0,-2.0) , fbm_octaves);
+    vec3 e = fbmd( p + vec2(1.0,-2.0) , fbm_octaves);
 
     //canyons -- removed for now
     //vec2 c = smoothstepd( -0.08, -0.01, e.x );
@@ -247,10 +249,11 @@ vec4 terrainMapD( in vec2 p )
 vec3 applyFog(in vec3 rgb, in float dist, in vec3  rayDir, in vec3  sunDir )
 {
     float fogAmount = 1.0 - exp( -(dist*dist)*((fog*fog) / 200000.0) );
-    float sunAmount = max( dot( rayDir, sunDir ), 0.0 );
-    vec3  fogColor  = mix( vec3(0.5,0.6,0.7), // bluish
-                           vec3(1.0,0.9,0.7), // yellowish
-                           pow(sunAmount,8.0) );
+    float sunAmount = clamp( dot( rayDir, sunDir ), 0.0, 1.0 );
+    vec3 fogColor  = mix( vec3(0.5,0.6,0.7), // bluish
+            vec3(1.0,0.9,0.7), // yellowish
+            pow(sunAmount, (0.5/(sun_dispersion)) * 8.0 * ((dist) / 1000.0)) );
+
     return mix(rgb, fogColor, fogAmount );
 }
 
@@ -663,11 +666,15 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
             l += diffuse * shadow;
             //l += specular
-            ret = vec4(vec3(l,l,l), 1);
-            
-            ret = vec4(applyFog(ret.xyz, t, rd, kSunDir), 1);
 
-            return ret;
+            vec3 col = vec3(l);
+
+            col = applyFog(col, t, rd, kSunDir);
+
+            if (t / max_distance > 0.8) 
+                col = mix(col, renderSky(ro, rd), pow(t / max_distance, D) * E);
+            
+            return vec4(col, 1);
         }
 
         t += d*step_size;
