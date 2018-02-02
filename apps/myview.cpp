@@ -69,6 +69,7 @@ struct app_state {
     int fbm_octaves = 11;
     int sha_octaves = 6;
     float sha_stepsize = 5.0;
+    float fog = 1.0;
 
     float A = 0, B = 1, C = 1, D = 1, E = 1;
 
@@ -161,6 +162,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "fbm_octaves", app->fbm_octaves);
     pass_to_shader(app, "sha_octaves", app->sha_octaves);
     pass_to_shader(app, "sha_stepsize", app->sha_stepsize);
+    pass_to_shader(app, "fog", app->fog);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -217,6 +219,7 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "gamma", app->gamma);
         draw_value_widget(win, "fbm_octaves", app->fbm_octaves, 0, 14, 1);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Number of noise octaves to generate terrain");
+        draw_value_widget(win, "fog", app->fog, 0, 1, 1);
     }
     end_widgets(win);
 

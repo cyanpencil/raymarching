@@ -37,6 +37,8 @@ uniform int fbm_octaves = 8;
 uniform int sha_octaves = 8;
 uniform float sha_stepsize = 1.0;
 
+uniform float fog = 1.0;
+
 
 
 
@@ -212,7 +214,7 @@ float terrainMap(in vec2 p, int octaves) {
     float sca = 0.0010 * E;
     float amp = 300.0 * D;
     p *= sca;
-    float e = fbm(p + B*vec2(1.0, -2.0), octaves);
+    float e = fbm(p + vec2(1.0, -2.0), octaves);
 
     //canyons -- removed for now
     //float c = smoothstep(-0.08 , -0.01, e);
@@ -239,6 +241,15 @@ vec4 terrainMapD( in vec2 p )
     return vec4( e.x, normalize( vec3(-e.y,1.0,-e.z) ) );
 }
 
+
+
+// ----- FOG FUNCTION ADAPTED FROM INIGO QUIELEZ: http://www.iquilezles.org/www/articles/fog/fog.htm
+vec3 applyFog(in vec3  rgb, in float dist)
+{
+    float fogAmount = 1.0 - exp( -dist*(fog / 250.0) );
+    vec3  fogColor  = vec3(0.5,0.6,0.7);
+    return mix( rgb, fogColor, fogAmount );
+}
 
 
 
@@ -650,6 +661,8 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
             l += diffuse * shadow;
             //l += specular
             ret = vec4(vec3(l,l,l), 1);
+            
+            ret = vec4(applyFog(ret.xyz, t), 1);
 
             return ret;
         }
