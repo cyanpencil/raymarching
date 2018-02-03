@@ -34,6 +34,7 @@ uniform float softshadows = 5.0;
 uniform int shadows = 0;
 uniform int clouds = 0;
 uniform int gamma = 1;
+uniform int lens_flare = 1;
 
 uniform int fbm_octaves = 8;
 uniform int sha_octaves = 8;
@@ -173,7 +174,14 @@ vec3 renderSky( in vec3 ro, in vec3 rd )
 {
     // background sky     
     vec3 col = vec3(0);
-    col += vec3(1.0,0.1,0.1)*1.1 - rd.y*rd.y*0.5;
+    //col += vec3(1.0,0.1,0.1)*1.1 - rd.y*rd.y*0.5;
+
+    float mysundot = clamp(dot(kSunDir,rd), 0.0, 1.0 );
+    col += mix(vec3(1.0,0.1,0.1)*1.1, normalize(vec3(172, 133, 102)), D*rd.y*rd.y + 0.588*(1.0 - mysundot));
+
+    //col += vec3(1.0,0.1,0.1)*1.1 - 2.0*rd.y*rd.y*0.5*vec3(1.0, 1.0, 0.0);
+
+
     //col += normalize(vec3(208,103,5))*1.1 - rd.y*rd.y*0.5;
     //col = mix( col, 0.85*vec3(0.7,0.75,0.85), pow( 1.0-max(rd.y,0.0), 4.0 ) );
 
@@ -255,14 +263,48 @@ vec3 applyFog(in vec3 rgb, in float dist, in vec3  rayDir, in vec3  sunDir )
 {
     float fogAmount = 1.0 - exp( -(dist*dist/max_distance)*((fog*fog) / 200.0) );
     float sunAmount = clamp( dot( rayDir, sunDir ), 0.0, 1.0 );
-            vec3 fogColor  = mix( 0.5*normalize(vec3(118,34,8)),
-                vec3(1.0,0.9,0.1), // yellowish
-                pow(sunAmount, (0.5/(sun_dispersion)) * 8.0 * ((dist) / 1000.0)) );
-    //vec3 fogColor  = mix( vec3(0.5,0.6,0.7), // bluish
-            //vec3(1.0,0.9,0.7), // yellowish
-            //pow(sunAmount, (0.5/(sun_dispersion)) * 8.0 * ((dist) / 1000.0)) );
+    vec3 fogColor  = mix( 0.5*normalize(vec3(118,34,8)),
+            vec3(1.0,0.9,0.1), // yellowish
+            pow(sunAmount, (0.5/(sun_dispersion)) * 8.0 * ((dist) / 1000.0)) );
     return mix(rgb, fogColor, fogAmount );
 }
+
+
+// ----- LENS FLARE ADAPTED FROM NIMITZ: https://www.shadertoy.com/view/XtS3DD
+float pent(in vec2 p){
+    vec2 q = abs(p);
+    return max(max(q.x*1.176-p.y*0.385, q.x*0.727+p.y), -p.y*1.237)*1.;
+}
+
+float circle(in vec2 p){
+    return length(p);
+}
+
+vec3 flare(vec2 p, vec2 pos) 
+{
+	vec2 q = p-pos;
+    vec2 pds = p*(length(p))*0.75;
+	float a = atan(q.x,q.y);
+    float rz = 0;
+
+    vec2 p2 = mix(p,pds,-.5*D); //Reverse distort
+    rz += max(0.01-pow(circle(p2 - 0.2*pos),1.7),.0)*3.0;
+    rz += max(0.01-pow(pent(p2 + 0.4*pos),2.2),.0)*3.0;
+    //rz += max(0.01-pow(pent(p2 + 0.2*pos),2.5),.0)*3.0;
+    //rz += max(0.01-pow(pent(p2 - 0.1*pos),1.6),.0)*4.0;
+    rz += max(0.01-pow(pent(-(p2 + 1.*pos)),2.5),.0)*5.0;
+    rz += max(0.01-pow(pent(-(p2 - .5*pos)),2.),.0)*4.0;
+    //rz += max(0.01-pow(pent(-(p2 + .7*pos)),2.),.0)*3.0;
+    //rz += max(0.01-pow(pent(-(p2 + 1.4*pos)),1.9),.0)*3.0;
+    //rz += max(0.01-pow(pent(-(p2 + 1.0*pos)),3.0),.0)*3.0;
+    rz += max(0.01-pow(circle(-(p2 + 1.8*pos)),3.0),.0)*3.0;
+
+    rz *= (1.0 - length(q));
+    rz *= 5.0;
+
+    return vec3(clamp(rz,0.,1.));
+}
+
 
 
 
@@ -676,14 +718,14 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
             float indirect_sun = clamp(dot(n, normalize(kSunDir*vec3(-1.0, 0.0, -1.0))), 0.0, 1.0);
 
-            col += indirect_sun * vec3(0.40, 0.28, 0) * 0.16; // MULTIPLY PER AMBIENT OCCLUSION HERE
+            col += indirect_sun *  vec3(0.40, 0.28, 0) * 0.14; // MULTIPLY PER AMBIENT OCCLUSION HERE
 
             float diffuse_sky = clamp(0.5 + 0.5*n.y, 0.0, 1.0);
 
 
             //MUST SELECT BETTER COLOR FOR SKY
              //MUST SELECT BETTER COLOR FOR SKY
-            col += diffuse_sky * vec3(0.596, 0.282, 0.086) * 0.2;  //MUST SELECT BETTER COLOR FOR SKY // MULTIPLY PER AMBIENT OCCLUSION HERE
+            col += diffuse_sky * vec3(0.596, 0.182, 0.086) * 0.2;  //MUST SELECT BETTER COLOR FOR SKY // MULTIPLY PER AMBIENT OCCLUSION HERE
             //MUST SELECT BETTER COLOR FOR SKY
             //MUST SELECT BETTER COLOR FOR SKY
 
@@ -762,9 +804,14 @@ void main() {
             fragColor += raymarch_terrain(_CameraDir, rd);
             //fragColor = raymarch(_CameraDir, rd);
             //fragColor = vec4(fbm(uv*40.0, fbm_octaves));
+
+            if (lens_flare > 0) {
+                vec3 sunpos = inverse(camera(_CameraDir, vec3(0)))*kSunDir;
+                if (sunpos.z > 0) fragColor += vec4(flare(uv, sunpos.xy), 1);
+            }
+            //return;
         }
     }
-
 
 
     fragColor /= float(AA*AA);

@@ -67,6 +67,7 @@ struct app_state {
     bool shadows = false;
     bool clouds = false;
     bool gamma = false;
+    bool lens_flare = true;
     int fbm_octaves = 11;
     int sha_octaves = 6;
     float sha_stepsize = 3.0;
@@ -167,6 +168,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "fog", app->fog);
     pass_to_shader(app, "sun_dispersion", app->sun_dispersion);
     pass_to_shader(app, "AA", app->AA);
+    pass_to_shader(app, "lens_flare", app->lens_flare);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -228,6 +230,7 @@ inline void draw(gl_window* win) {
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Number of noise octaves to generate terrain");
         draw_value_widget(win, "fog", app->fog, 0, 1, 1);
         draw_value_widget(win, "sun dispersion", app->sun_dispersion, 0, 1, 1);
+        draw_value_widget(win, "lens flare", app->lens_flare);
     }
     end_widgets(win);
 
