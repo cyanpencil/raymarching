@@ -172,8 +172,10 @@ vec3 fbmd( in vec2 x , int octaves)
 vec3 renderSky( in vec3 ro, in vec3 rd )
 {
     // background sky     
-    vec3 col = vec3(0.2,0.5,0.85)*1.1 - rd.y*rd.y*0.5;
-    col = mix( col, 0.85*vec3(0.7,0.75,0.85), pow( 1.0-max(rd.y,0.0), 4.0 ) );
+    vec3 col = vec3(0);
+    col += vec3(1.0,0.1,0.1)*1.1 - rd.y*rd.y*0.5;
+    //col += normalize(vec3(208,103,5))*1.1 - rd.y*rd.y*0.5;
+    //col = mix( col, 0.85*vec3(0.7,0.75,0.85), pow( 1.0-max(rd.y,0.0), 4.0 ) );
 
     // clouds
     if (clouds > 0) {
@@ -189,12 +191,14 @@ vec3 renderSky( in vec3 ro, in vec3 rd )
     
     // sun glare    
     float sundot = clamp(dot(kSunDir,rd), 0.0, 1.0 );
-    col += 0.25*vec3(1.0,0.7,0.4)*pow( sundot,5.0 );
-    col += 0.25*vec3(1.0,0.8,0.6)*pow( sundot,64.0 );
-    col += 0.2*vec3(1.0,0.8,0.6)*pow( sundot,512.0 );
+    //col += 0.25*vec3(1.0,0.7,0.4)*pow( sundot,5.0 );
+    col += 20.0*normalize(vec3(250,206,150))*pow( sundot,2048.0);
+    col += normalize(vec3(250,206,14))*pow( sundot,64.0 );
+    col += normalize(vec3(244,162,5))*pow( sundot,5.0 );
+    //col += 0.2*vec3(1.0,0.8,0.6)*pow( sundot,512.0 );
 
     //horizon
-    col = mix( col, 0.68*vec3(0.4,0.65,1.0), pow( 1.0-max(rd.y,0.0), 32.0 ) );
+    col = mix( col, 0.5*normalize(vec3(118,34,8)), pow( 1.0-max(rd.y + 0.1,0.0), 10.0 ) );
 
     return col;
 }
@@ -251,9 +255,12 @@ vec3 applyFog(in vec3 rgb, in float dist, in vec3  rayDir, in vec3  sunDir )
 {
     float fogAmount = 1.0 - exp( -(dist*dist/max_distance)*((fog*fog) / 200.0) );
     float sunAmount = clamp( dot( rayDir, sunDir ), 0.0, 1.0 );
-    vec3 fogColor  = mix( vec3(0.5,0.6,0.7), // bluish
-            vec3(1.0,0.9,0.7), // yellowish
-            pow(sunAmount, (0.5/(sun_dispersion)) * 8.0 * ((dist) / 1000.0)) );
+            vec3 fogColor  = mix( 0.5*normalize(vec3(118,34,8)),
+                vec3(1.0,0.9,0.1), // yellowish
+                pow(sunAmount, (0.5/(sun_dispersion)) * 8.0 * ((dist) / 1000.0)) );
+    //vec3 fogColor  = mix( vec3(0.5,0.6,0.7), // bluish
+            //vec3(1.0,0.9,0.7), // yellowish
+            //pow(sunAmount, (0.5/(sun_dispersion)) * 8.0 * ((dist) / 1000.0)) );
     return mix(rgb, fogColor, fogAmount );
 }
 
@@ -664,11 +671,12 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
             }
 
 
-            col += diffuse_sun * vec3(1.64, 1.27, 0.99) * pow(vec3(shadow), vec3(1.0, 1.2, 1.5));
+            //col += diffuse_sun * vec3(1.64, 1.27, 0.99) * pow(vec3(shadow), vec3(1.0, 1.2, 1.5));
+            col += diffuse_sun * normalize(vec3(250,206,14))* pow(vec3(shadow), vec3(1.0, 1.2, 1.5));
 
             float indirect_sun = clamp(dot(n, normalize(kSunDir*vec3(-1.0, 0.0, -1.0))), 0.0, 1.0);
 
-            col += indirect_sun * vec3(0.40, 0.28, 0.20) * 0.16; // MULTIPLY PER AMBIENT OCCLUSION HERE
+            col += indirect_sun * vec3(0.40, 0.28, 0) * 0.16; // MULTIPLY PER AMBIENT OCCLUSION HERE
 
             float diffuse_sky = clamp(0.5 + 0.5*n.y, 0.0, 1.0);
 

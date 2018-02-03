@@ -66,7 +66,7 @@ struct app_state {
     float softshadows = 8.0;
     bool shadows = false;
     bool clouds = false;
-    bool gamma = true;
+    bool gamma = false;
     int fbm_octaves = 11;
     int sha_octaves = 6;
     float sha_stepsize = 3.0;
