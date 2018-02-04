@@ -74,6 +74,7 @@ struct app_state {
     float sha_stepsize = 3.0;
     float fog = 0.3;
     float sun_dispersion = 0.5;
+    float wavegain = 0.5;
 
     float water_level = 200;
     float elevate = 2.0;
@@ -181,6 +182,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "water_level", app->water_level);
     pass_to_shader(app, "hq_water", app->hq_water);
     pass_to_shader(app, "seed", app->seed);
+    pass_to_shader(app, "wavegain", app->wavegain);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -218,6 +220,7 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "step size", app->step_size, 0, 1, 1);
         draw_value_widget(win, "AA", app->AA, 1, 3, 1);
         draw_value_widget(win, "jitter factor", app->jitter_factor, 0, 10, 1);
+        draw_value_widget(win, "rough water", app->wavegain, 0, 1, 1);
         draw_separator_widget(win);
         draw_value_widget(win, "ka", app->ka, 0, 1, 1);
         draw_value_widget(win, "kd", app->kd, 0, 1, 1);

@@ -47,6 +47,7 @@ uniform float sun_dispersion = 1.0;
 uniform float elevate = 2.0;
 uniform float large = 0.5;
 uniform float water_level = 100.0;
+uniform float wavegain = 0.5;
 
 uniform float seed = 0.0; 
 
@@ -327,7 +328,6 @@ vec3 flare(vec2 p, vec2 pos)
 
 // ------WATER SHADER ADAPTED FROM FRANKENBURG: https://www.shadertoy.com/view/4sXGRM
 
-float wavegain   = 1.0;       // change to adjust the general water wave level
 float large_waveheight = 0.7; // change to adjust the "heavy" waves (set to 0.0 to have a very still ocean :)
 float small_waveheight = 1.0; // change to adjust the small waves
 vec3 watercolor  = vec3(0.2, 0.25, 0.3)*D;
@@ -473,8 +473,6 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
             p = ro + rd * t;
             vec3 col = vec3(0.0);
 
-            wavegain *= E;
-
             // calculate water-mirror
             vec2 xdiff = vec2(0.1, 0.0)*wavegain*4.;
             vec2 ydiff = vec2(0.0, 0.1)*wavegain*4.;
@@ -488,7 +486,7 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
             vec3 refl_col = renderSky(p, rd_bis);
             // raymarch to see if the sky is visible
             if (rd_bis.y > 0.0 && shadows > 0.0) {
-                vec3 myro = p + rd_bis; //Start a bit higher than terrain. Helps when sha_octaves is low (< 5)
+                vec3 myro = p;
                 vec3 myrd = rd_bis;
                 float tt = 0.1;
                 vec3 pp = p;
@@ -519,7 +517,7 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
             float alpha = pow(t / max_distance, 3.0);
             if (alpha > 0.2) 
-                col = mix(col, renderSky(ro, rd), alpha);
+                col = mix(col, renderSky(ro, rd), alpha - 0.2);
 
 
             return vec4(col, 1);
