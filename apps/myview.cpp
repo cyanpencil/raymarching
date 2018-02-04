@@ -55,11 +55,11 @@ struct app_state {
     //Fragment shader variables
     int AA = 1;
     int max_raymarching_steps = 64;
-    float max_distance = 1000;
+    float max_distance = 5000;
     float step_size = 1;
     vec2f mouse = zero2f;
     vec3f mov = zero3f;
-    float camera_distance = 3;
+    float camera_distance = 300;
     float jitter_factor = 2;
     float ka = 0.05, kd = 0.2, ks = 0.0;
     float blinn_phong_alpha = 500;
@@ -67,12 +67,19 @@ struct app_state {
     bool shadows = false;
     bool clouds = false;
     bool gamma = false;
-    bool lens_flare = true;
+    bool lens_flare = false;
+    bool hq_water = true;
     int fbm_octaves = 11;
     int sha_octaves = 6;
     float sha_stepsize = 3.0;
     float fog = 0.3;
     float sun_dispersion = 0.5;
+
+    float water_level = 200;
+    float elevate = 2.0;
+    float large = 1.5;
+
+    float seed = 0.0;
 
     float A = 0, B = 1, C = 1, D = 1, E = 1;
 
@@ -169,6 +176,11 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "sun_dispersion", app->sun_dispersion);
     pass_to_shader(app, "AA", app->AA);
     pass_to_shader(app, "lens_flare", app->lens_flare);
+    pass_to_shader(app, "elevate", app->elevate);
+    pass_to_shader(app, "large", app->large);
+    pass_to_shader(app, "water_level", app->water_level);
+    pass_to_shader(app, "hq_water", app->hq_water);
+    pass_to_shader(app, "seed", app->seed);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -226,11 +238,21 @@ inline void draw(gl_window* win) {
         if (app->shadows) draw_value_widget(win, "softshadows", app->softshadows, 0, 20, 1);
         if (app->shadows) draw_value_widget(win, "sha_octaves", app->sha_octaves, 0, 14, 1);
         if (app->shadows) draw_value_widget(win, "sha_stepsize", app->sha_stepsize, 0, 50, 1);
-        draw_value_widget(win, "fbm_octaves", app->fbm_octaves, 0, 14, 1);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Number of noise octaves to generate terrain");
         draw_value_widget(win, "fog", app->fog, 0, 1, 1);
         draw_value_widget(win, "sun dispersion", app->sun_dispersion, 0, 1, 1);
         draw_value_widget(win, "lens flare", app->lens_flare);
+        ImGui::SameLine();
+        draw_value_widget(win, "hq water", app->hq_water);
+        draw_separator_widget(win);
+        draw_value_widget(win, "fbm_octaves", app->fbm_octaves, 0, 14, 1);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Number of noise octaves to generate terrain");
+        draw_value_widget(win, "elevate", app->elevate, 0, 10, 1);
+        draw_value_widget(win, "large", app->large, 0, 3, 1);
+        draw_value_widget(win, "water level", app->water_level, -500, 500, 1);
+        if(draw_button_widget(win, "Randomize")) {
+            double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+            app->seed = fmod(real_time , 5000);
+        }
     }
     end_widgets(win);
 
