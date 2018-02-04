@@ -231,6 +231,23 @@ vec2 smoothstepd( float a, float b, float x)
     return vec2( x*x*(3.0-2.0*x), 6.0*x*(1.0-x)*ir );
 }
 
+
+//length with derivatives
+vec3 length_d(vec2 p) {
+    vec3 res = vec3(0);
+    float size = p.x*p.x + p.y*p.y;
+    res.x = pow(size, 0.5);
+    res.y = pow(size, -0.5)*p.x;
+    res.z = pow(size, -0.5)*p.y;
+    return res;
+}
+
+
+float length_n(vec2 p, float exponent) {
+    float size = pow(p.x, exponent) + pow(p.y, exponent);
+    return pow(size, 1.0/exponent);
+}
+
 float terrainMap(in vec2 p, int octaves) {
     float sca = 0.0010;
     float amp = 300.0;
@@ -241,7 +258,11 @@ float terrainMap(in vec2 p, int octaves) {
 
 
 
-    e += elevate*exp(-large*(length(p)));
+    float length2 = length(p);
+    e += elevate*exp(-large*(max(length2, A)));
+    if (length2 < A) {
+        e -= 2.0 * (A - length2);
+    }
 
     //e *= (
 
@@ -260,11 +281,18 @@ vec4 terrainMapD( in vec2 p )
     p *= sca;
     vec3 e = fbmd( p + vec2(1.0,-2.0)*(1.0 + seed) , fbm_octaves);
 
-    //e.x *= 2.0*E;
 
-    e.x += elevate*exp(-large*(length(p)));
-    //e.y += elevate*exp(-large*(length(p)))*(large*2*p.x);
-    //e.z += elevate*exp(-large*(length(p)))*(-large*2*p.y);
+    vec3 length2 = length_d(p);
+    e.x += elevate*exp(-large*(max(length2.x, A)));
+    if (length2.x < A) {
+        e.x -= 2.0 * (A - length2.x);
+        e.y -= 2.0 * -length2.y;
+        e.z -= 2.0 * -length2.z;
+    }
+    else {
+        e.y += elevate*exp(-large*(max(length2.x, A)))*(-large*length2.y);
+        e.z += elevate*exp(-large*(max(length2.x, A)))*(-large*length2.z);
+    }
 
     //canyons -- removed for now
     //vec2 c = smoothstepd( -0.08, -0.01, e.x );
@@ -326,16 +354,16 @@ vec3 flare(vec2 p, vec2 pos)
 }
 
 
-// ------WATER SHADER ADAPTED FROM FRANKENBURG: https://www.shadertoy.com/view/4sXGRM
+// ------WATER ADAPTED FROM FRANKENBURG: https://www.shadertoy.com/view/4sXGRM
 
 float large_waveheight = 0.7; // change to adjust the "heavy" waves (set to 0.0 to have a very still ocean :)
 float small_waveheight = 1.0; // change to adjust the small waves
-vec3 watercolor  = vec3(0.2, 0.25, 0.3)*D;
+vec3 watercolor  = vec3(0.2, 0.25, 0.3);
 // this calculates the water as a height of a given position
 float water( vec2 p )
 {
     vec2 shift2 = 0.0003*vec2( time*190.0*2.0, -time*130.0*2.0 );
-    //float terrain = terrainMap(p - time*A, fbm_octaves);
+    //float terrain = terrainMap(p - time, fbm_octaves);
     //shift2 *= clamp((water_level - terrain) / 500.0, 0.0, 1.0);
 
     float wave = 0.0;
@@ -428,7 +456,7 @@ float map(in vec3 p) {
 }
 
 vec3 normaleRubata(in vec3 p) {
-    return terrainMapD(p.xz - time*A).yzw;
+    return terrainMapD(p.xz).yzw;
 }
 
 //Adapted from: http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/#rotation-and-translation
@@ -463,7 +491,7 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
     for (int i = 0; i < max_raymarching_steps; ++i) {
         if (t > max_distance) break;
         vec3 p = ro + rd * t; //point hit on the surface
-        float terrain = terrainMap(p.xz - time*A, fbm_octaves);
+        float terrain = terrainMap(p.xz, fbm_octaves);
         float d = p.y - terrain;
 
 
@@ -493,7 +521,7 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
                 for (int j = 0; j < max_raymarching_steps; j++) {
                     if (tt > max_distance)  break;
                     pp = myro + myrd * tt; 
-                    terrain = terrainMap(pp.xz - time*A, sha_octaves);
+                    terrain = terrainMap(pp.xz, sha_octaves);
                     d = pp.y - terrain;
                     if (d < 0.001*tt) {
                         refl_col = normalize(vec3(114, 53, 6))/2.0;
@@ -510,7 +538,7 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
             col -= vec3(.3,.3,.3);
 
-            terrain = terrainMap(p.xz - time*A, fbm_octaves);
+            terrain = terrainMap(p.xz, fbm_octaves);
 
             col += vec3(.15,.15,.15)*(clamp(20.0 / (water_level - terrain), 0.0, 1.0));
             col = applyFog(col, t, rd, kSunDir);
@@ -544,7 +572,7 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
                 for (int j = 0; j < max_raymarching_steps; j++) {
                     if (tt > max_distance) break;
                     p = myro + myrd * tt; 
-                    terrain = terrainMap(p.xz - time*A, sha_octaves);
+                    terrain = terrainMap(p.xz, sha_octaves);
                     d = p.y - terrain;
                     if (d < 0.001*tt) {
                         shadow = 0.0;
@@ -570,10 +598,15 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
             col += diffuse_sky * vec3(0.596, 0.182, 0.086) * 0.2;  // MULTIPLY PER AMBIENT OCCLUSION HERE
 
+
+            //float diffuse_lava = B*clamp(dot(n, normalize(vec3(0,terrainMap(vec2(0), fbm_octaves), 0))), 0.0, 1.0);
+
+            //col += diffuse_lava * vec3(1,0,0);
+
             col += specular;
 
 
-            // far terrain disappears
+            // far away terrain fades away
             float alpha = pow(t / max_distance, 3.0);
             if (alpha > 0.2) 
                 col = mix(col, renderSky(ro, rd), alpha - 0.2);

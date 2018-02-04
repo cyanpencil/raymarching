@@ -227,8 +227,8 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "ks", app->ks, 0, 1, 1);
         draw_value_widget(win, "blinn phong", app->blinn_phong_alpha, 0, 1e4, 1);
         draw_separator_widget(win);
-        draw_value_widget(win, "A", app->A, 0, 200, 1);
-        draw_value_widget(win, "B", app->B, 0, 100, 1);
+        draw_value_widget(win, "A", app->A, 0, 2, 1);
+        draw_value_widget(win, "B", app->B, 0, 2, 1);
         draw_value_widget(win, "C", app->C, 0, 50, 1);
         draw_value_widget(win, "D", app->D, 0, 20, 1);
         draw_value_widget(win, "E", app->E, 0, 2, 1);
