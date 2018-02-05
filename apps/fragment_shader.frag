@@ -36,6 +36,7 @@ uniform int clouds = 0;
 uniform int gamma = 1;
 uniform int lens_flare = 1;
 uniform int hq_water = 1;
+uniform int lava = 1;
 
 uniform int fbm_octaves = 8;
 uniform int sha_octaves = 8;
@@ -599,9 +600,12 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
             col += diffuse_sky * vec3(0.596, 0.182, 0.086) * 0.2;  // MULTIPLY PER AMBIENT OCCLUSION HERE
 
 
-            //float diffuse_lava = B*clamp(dot(n, normalize(vec3(0,terrainMap(vec2(0), fbm_octaves), 0))), 0.0, 1.0);
-
-            //col += diffuse_lava * vec3(1,0,0);
+            //float diffuse_lava = B*clamp(dot(n, normalize(vec3(0,C*terrainMap(vec2(0), fbm_octaves), 0))), 0.0, 1.0);
+            if (lava > 0.0) {
+                float lava_height = terrainMap(vec2(0), fbm_octaves) + 50.0;
+                float diffuse_lava = 0.031*clamp(dot(n, normalize(vec3(0.0,lava_height, 0.0))), 0.0, 1.0);
+                col += 100000.0 * 0.013 * vec3(1,.1,.1) / (p.x*p.x + (p.y-lava_height)*(p.y-lava_height) + p.z*p.z);
+            }
 
             col += specular;
 

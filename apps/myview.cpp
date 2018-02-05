@@ -69,6 +69,7 @@ struct app_state {
     bool gamma = false;
     bool lens_flare = false;
     bool hq_water = true;
+    bool lava = true;
     int fbm_octaves = 11;
     int sha_octaves = 6;
     float sha_stepsize = 3.0;
@@ -82,7 +83,7 @@ struct app_state {
 
     float seed = 0.0;
 
-    float A = 0, B = 1, C = 1, D = 1, E = 1;
+    float A = 0.03, B = 1, C = 1, D = 1, E = 1;
 
 
     ~app_state() {
@@ -183,6 +184,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "hq_water", app->hq_water);
     pass_to_shader(app, "seed", app->seed);
     pass_to_shader(app, "wavegain", app->wavegain);
+    pass_to_shader(app, "lava", app->lava);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -246,6 +248,8 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "lens flare", app->lens_flare);
         ImGui::SameLine();
         draw_value_widget(win, "hq water", app->hq_water);
+        ImGui::SameLine();
+        draw_value_widget(win, "lava", app->lava);
         draw_separator_widget(win);
         draw_value_widget(win, "fbm_octaves", app->fbm_octaves, 0, 14, 1);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Number of noise octaves to generate terrain");
