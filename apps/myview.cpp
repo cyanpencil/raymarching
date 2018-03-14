@@ -47,6 +47,7 @@ struct app_state {
 
     // ui
     bool scene_updated = false;
+    bool show_widgets = true;
     shade_state* shstate = nullptr;
     vec2i framebuffer_size;
     float fps = 1.0;
@@ -54,34 +55,35 @@ struct app_state {
 
     //Fragment shader variables
     int AA = 1;
-    int max_raymarching_steps = 64;
-    float max_distance = 5000;
-    float step_size = 1;
+    int max_raymarching_steps = 128;
+    float max_distance = 7000;
+    float step_size = .8;
     vec2f mouse = zero2f;
     vec3f mov = zero3f;
-    float camera_distance = 300;
-    float jitter_factor = 2;
-    float ka = 0.05, kd = 0.2, ks = 0.0;
-    float blinn_phong_alpha = 500;
-    float softshadows = 8.0;
-    bool shadows = false;
+    float camera_distance = 250;
+    float ka = 0.05, kd = 0.2;
+    float softshadows = 7.0;
+    bool shadows = true;
+    bool water_refl = true;
     bool clouds = false;
     bool gamma = false;
     bool lens_flare = false;
     bool hq_water = true;
-    bool lava = true;
+    bool lava = false;
     int fbm_octaves = 11;
     int sha_octaves = 6;
     float sha_stepsize = 3.0;
-    float fog = 0.3;
+    float fog = 0.2;
     float sun_dispersion = 0.5;
-    float wavegain = 0.5;
+    float wavegain = 0.3;
 
-    float water_level = 200;
+    float water_level = 130;
     float elevate = 2.0;
     float large = 1.5;
+    float crater_width = 0.03;
 
-    float seed = 0.0;
+    float seed = 104.0;
+
 
     float A = 0.03, B = 1, C = 1, D = 1, E = 1;
 
@@ -157,18 +159,11 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "max_distance", app->max_distance);
     pass_to_shader(app, "step_size", app->step_size);
     pass_to_shader(app, "camera_distance", app->camera_distance);
-    pass_to_shader(app, "jitter_factor", app->jitter_factor);
     pass_to_shader(app, "ka", app->ka);
     pass_to_shader(app, "kd", app->kd);
-    pass_to_shader(app, "ks", app->ks);
-    pass_to_shader(app, "blinn_phong_alpha", app->blinn_phong_alpha);
-    pass_to_shader(app, "A", app->A);
-    pass_to_shader(app, "B", app->B);
-    pass_to_shader(app, "C", app->C);
-    pass_to_shader(app, "D", app->D);
-    pass_to_shader(app, "E", app->E);
     pass_to_shader(app, "softshadows", app->softshadows);
     pass_to_shader(app, "shadows", app->shadows);
+    pass_to_shader(app, "water_refl", app->water_refl);
     pass_to_shader(app, "clouds", app->clouds);
     pass_to_shader(app, "gamma", app->gamma);
     pass_to_shader(app, "fbm_octaves", app->fbm_octaves);
@@ -185,6 +180,7 @@ inline void shade_scene(app_state* app) {
     pass_to_shader(app, "seed", app->seed);
     pass_to_shader(app, "wavegain", app->wavegain);
     pass_to_shader(app, "lava", app->lava);
+    pass_to_shader(app, "crater_width", app->crater_width);
 
     double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     int passed = real_time - app->last_frame;
@@ -214,33 +210,24 @@ inline void draw(gl_window* win) {
     gl_clear_buffers();
     shade_scene(app);
 
-    if (begin_widgets(win, "yview")) {
+    if (app->show_widgets && begin_widgets(win, "yview")) {
         draw_separator_widget(win);
         draw_label_widget(win, std::to_string(app->fps), "FPS:");
         draw_value_widget(win, "Ray steps", app->max_raymarching_steps, 1, 200, 1);
         draw_value_widget(win, "Max distance", app->max_distance, 0, 10000, 1);
         draw_value_widget(win, "step size", app->step_size, 0, 1, 1);
         draw_value_widget(win, "AA", app->AA, 1, 3, 1);
-        draw_value_widget(win, "jitter factor", app->jitter_factor, 0, 10, 1);
-        draw_value_widget(win, "rough water", app->wavegain, 0, 1, 1);
         draw_separator_widget(win);
         draw_value_widget(win, "ka", app->ka, 0, 1, 1);
         draw_value_widget(win, "kd", app->kd, 0, 1, 1);
-        draw_value_widget(win, "ks", app->ks, 0, 1, 1);
-        draw_value_widget(win, "blinn phong", app->blinn_phong_alpha, 0, 1e4, 1);
         draw_separator_widget(win);
-        draw_value_widget(win, "A", app->A, 0, 2, 1);
-        draw_value_widget(win, "B", app->B, 0, 2, 1);
-        draw_value_widget(win, "C", app->C, 0, 50, 1);
-        draw_value_widget(win, "D", app->D, 0, 20, 1);
-        draw_value_widget(win, "E", app->E, 0, 2, 1);
-        draw_separator_widget(win);
+        draw_value_widget(win, "water reflections", app->water_refl);
         draw_value_widget(win, "shadows", app->shadows);
         ImGui::SameLine();
         draw_value_widget(win, "clouds", app->clouds);
         ImGui::SameLine();
         draw_value_widget(win, "gamma", app->gamma);
-        if (app->shadows) draw_value_widget(win, "softshadows", app->softshadows, 0, 20, 1);
+        if (app->shadows) draw_value_widget(win, "softshadows", app->softshadows, 0, 60, 1);
         if (app->shadows) draw_value_widget(win, "sha_octaves", app->sha_octaves, 0, 14, 1);
         if (app->shadows) draw_value_widget(win, "sha_stepsize", app->sha_stepsize, 0, 50, 1);
         draw_value_widget(win, "fog", app->fog, 0, 1, 1);
@@ -254,14 +241,16 @@ inline void draw(gl_window* win) {
         draw_value_widget(win, "fbm_octaves", app->fbm_octaves, 0, 14, 1);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Number of noise octaves to generate terrain");
         draw_value_widget(win, "elevate", app->elevate, 0, 10, 1);
-        draw_value_widget(win, "large", app->large, 0, 3, 1);
+        draw_value_widget(win, "volcano_width", app->large, 0, 3, 1);
+        draw_value_widget(win, "crater_width", app->crater_width, 0, 1, 1);
         draw_value_widget(win, "water level", app->water_level, -500, 500, 1);
+        draw_value_widget(win, "rough water", app->wavegain, 0, 1, 1);
         if(draw_button_widget(win, "Randomize")) {
             double real_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
             app->seed = fmod(real_time , 5000);
         }
+        end_widgets(win);
     }
-    end_widgets(win);
 
     swap_buffers(win);
 }
@@ -318,6 +307,7 @@ inline void run_ui(app_state* app, int w, int h, const string& title) {
             if (get_key(win, 'e')) app->mov.y += 0.1;
             if (get_key(win, 'q')) app->mov.y -= 0.1;
             if (get_key(win, GLFW_KEY_ESCAPE)) exit(0);
+            if (get_key(win, GLFW_KEY_SPACE)) app->show_widgets = !  (app->show_widgets);
         }
 
         // draw

@@ -3,100 +3,61 @@
 #define PI 3.1415926535897932384626433832795
 #define inf 9e100
 
-
 out vec4 fragColor;
 
 uniform vec2 resolution;
-uniform int AA;
+uniform int AA = 1;  //antialias
 uniform vec2 mouse;
-uniform float camera_distance;
+uniform float camera_distance = 250;
 uniform float time;
-uniform float jitter_factor;
-uniform int max_raymarching_steps; //64 by default
-uniform float max_distance; //100 by default
-uniform float step_size;
-
-uniform float A, B, C, D, E;
-uniform vec3 mov;
+uniform float jitter_factor = 2; //jitter when too close to object
+uniform int max_raymarching_steps = 128; //increase if you see artifacts near object edges
+uniform float max_distance = 5000; 
+uniform float step_size = 0.75; //decrease if you see artifacts near slopes
 
 const vec3  kSunDir = normalize(vec3(-0.624695,0.168521,-0.624695));
-vec3 _LightDir = kSunDir*100000.0; //we are assuming infinite light intensity
+vec3 _LightDir = kSunDir*100000.0; 
 vec3 _CameraDir = vec3(0,5,5);
 
-uniform float blinn_phong_alpha = 100;
-
 uniform float ka = 0.05;
-uniform float kd = 0.3;
-uniform float ks = 1.0;
+uniform float kd = 0.2;
 
-uniform float softshadows = 5.0;
 
-uniform int shadows = 0;
+//toggle between 0 and 1
+uniform int shadows = 0; 
+uniform int water_refl = 0; 
 uniform int clouds = 0;
-uniform int gamma = 1;
-uniform int lens_flare = 1;
+uniform int gamma = 0;
+uniform int lens_flare = 0;
 uniform int hq_water = 1;
-uniform int lava = 1;
+uniform int lava = 0;
 
-uniform int fbm_octaves = 8;
-uniform int sha_octaves = 8;
-uniform float sha_stepsize = 1.0;
+uniform int fbm_octaves = 11;
+uniform int sha_octaves = 6;
+uniform float sha_stepsize = 3.0;
+uniform float softshadows = 7.0;
 
-uniform float fog = 1.0;
-uniform float sun_dispersion = 1.0;
+uniform float fog = 0.3;
+uniform float sun_dispersion = 0.5;
 
 uniform float elevate = 2.0;
-uniform float large = 0.5;
-uniform float water_level = 100.0;
+uniform float large = 1.5;
+uniform float water_level = 130.0;
 uniform float wavegain = 0.5;
+
+uniform float crater_width = 0.03;
 
 uniform float seed = 0.0; 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // ------  VALUE NOISE BY INIGO QUIELEZ: http://www.iquilezles.org/www/articles/morenoise/morenoise.htm
-
-float hash2( vec2 p )
-{
+float hash2( vec2 p ) {
     p  = 50.0*fract( p*0.3183099 );
     return fract( p.x*p.y*(p.x+p.y) );
 }
 
-float noise( in vec2 x )
-{
+float noise( in vec2 x ) {
     vec2 p = floor(x);
     vec2 w = fract(x);
     vec2 u = w*w*w*(w*(w*6.0-15.0)+10.0);
@@ -109,9 +70,7 @@ float noise( in vec2 x )
     return -1.0+2.0*( a + (b-a)*u.x + (c-a)*u.y + (a - b - c + d)*u.x*u.y );
 }
 
-
-vec3 noised2( in vec2 x )
-{
+vec3 noised2( in vec2 x ) {
     vec2 p = floor(x);
     vec2 w = fract(x);
 
@@ -134,12 +93,10 @@ vec3 noised2( in vec2 x )
 }
 
 
-
 mat2 m2 = mat2(  0.80,  0.60, -0.60,  0.80 );
 mat2 m2i = mat2( 0.80, -0.60, 0.60,  0.80 );
 
-float fbm( in vec2 x, int octaves)
-{
+float fbm( in vec2 x, int octaves) {
     float f = 1.9;
     float s = 0.50;
     float a = 0.0;
@@ -154,8 +111,8 @@ float fbm( in vec2 x, int octaves)
 	return a;
 }
 
-vec3 fbmd( in vec2 x , int octaves)
-{
+//returns fbm with derivatives
+vec3 fbmd( in vec2 x , int octaves) {
     float f = 1.9;
     float s = 0.50;
     float a = 0.0;
@@ -175,28 +132,15 @@ vec3 fbmd( in vec2 x , int octaves)
 }
 
 
-// ----- SKY FUNCTION BY INIGO QUIELEZ: https://www.shadertoy.com/view/4ttSWf
-
-vec3 renderSky( in vec3 ro, in vec3 rd )
-{
-    // background sky     
+// ----- SKY ADAPTED FROM INIGO QUIELEZ's SHADER: https://www.shadertoy.com/view/4ttSWf
+vec3 renderSky( in vec3 ro, in vec3 rd ) {
     vec3 col = vec3(0);
-    //col += vec3(1.0,0.1,0.1)*1.1 - rd.y*rd.y*0.5;
 
-    float mysundot = clamp(dot(kSunDir,rd), 0.0, 1.0 );
-    col += mix(vec3(1.0,0.1,0.1)*1.1, normalize(vec3(172, 133, 102)), rd.y*rd.y + 0.588*(1.0 - mysundot));
-
-    //col += vec3(1.0,0.1,0.1)*1.1 - 2.0*rd.y*rd.y*0.5*vec3(1.0, 1.0, 0.0);
-
-
-    //col += normalize(vec3(208,103,5))*1.1 - rd.y*rd.y*0.5;
-    //col = mix( col, 0.85*vec3(0.7,0.75,0.85), pow( 1.0-max(rd.y,0.0), 4.0 ) );
 
     // clouds
     if (clouds > 0) {
         float t = (1000.0-ro.y)/rd.y;
-        if( t>0.0 )
-        {
+        if( t>0.0 ) {
             vec2 uv = (ro+t*rd).xz;
             float cl = fbm( uv*0.001 + vec2(-100.0, 20.0) , fbm_octaves);
             float dl = smoothstep(-0.2,0.6,cl);
@@ -204,13 +148,12 @@ vec3 renderSky( in vec3 ro, in vec3 rd )
         }
     }
 
-    // sun glare    
     float sundot = clamp(dot(kSunDir,rd), 0.0, 1.0 );
-    //col += 0.25*vec3(1.0,0.7,0.4)*pow( sundot,5.0 );
-    col += 20.0*normalize(vec3(250,206,150))*pow( sundot,2048.0);
-    col += normalize(vec3(250,206,14))*pow( sundot,64.0 );
-    col += normalize(vec3(244,162,5))*pow( sundot,5.0 );
-    //col += 0.2*vec3(1.0,0.8,0.6)*pow( sundot,512.0 );
+    col += mix(vec3(1.0,0.1,0.1)*1.1, normalize(vec3(172, 133, 102)), rd.y*rd.y + 0.588*(1.0 - sundot));
+
+    col += normalize(vec3(250,206,150))*pow(sundot,2048.0)*20.0;
+    col += normalize(vec3(250,206,14)) *pow(sundot,64.0);
+    col += normalize(vec3(244,162,5))  *pow(sundot,5.0);
 
     //horizon
     col = mix( col, 0.5*normalize(vec3(118,34,8)), pow( 1.0-max(rd.y + 0.1,0.0), 10.0 ) );
@@ -220,20 +163,7 @@ vec3 renderSky( in vec3 ro, in vec3 rd )
 
 
 
-// ---- OTHER THINGS BY INIGO QUIELEZ
-
-// return smoothstep and its derivative
-vec2 smoothstepd( float a, float b, float x)
-{
-    if( x<a ) return vec2( 0.0, 0.0 );
-    if( x>b ) return vec2( 1.0, 0.0 );
-    float ir = 1.0/(b-a);
-    x = (x-a)*ir;
-    return vec2( x*x*(3.0-2.0*x), 6.0*x*(1.0-x)*ir );
-}
-
-
-//length with derivatives
+//length of a vector with derivatives
 vec3 length_d(vec2 p) {
     vec3 res = vec3(0);
     float size = p.x*p.x + p.y*p.y;
@@ -255,28 +185,18 @@ float terrainMap(in vec2 p, int octaves) {
     p *= sca;
     float e = fbm(p + vec2(1.0, -2.0)*(1.0 + seed), octaves);
 
-    //e *= 2.0*E;
-
-
-
     float length2 = length(p);
-    e += elevate*exp(-large*(max(length2, A)));
-    if (length2 < A) {
-        e -= 2.0 * (A - length2);
+    e += elevate*exp(-large*(max(length2, crater_width))); //volcano
+    if (length2 < crater_width) {
+        e -= 2.0 * (crater_width - length2); //crater
     }
-
-    //e *= (
-
-    //canyons -- removed for now
-    //float c = smoothstep(-0.08 , -0.01, e);
-    //e = e + 0.15*c;
 
     e *= amp;
     return e;
 }
 
-vec4 terrainMapD( in vec2 p )
-{
+//return terrain map with normal coordinates 
+vec4 terrainMapD( in vec2 p ) {
     float sca = 0.0010;
     float amp = 300.0;
     p *= sca;
@@ -284,21 +204,18 @@ vec4 terrainMapD( in vec2 p )
 
 
     vec3 length2 = length_d(p);
-    e.x += elevate*exp(-large*(max(length2.x, A)));
-    if (length2.x < A) {
-        e.x -= 2.0 * (A - length2.x);
+    e.x += elevate*exp(-large*(max(length2.x, crater_width))); //volcano
+    if (length2.x < crater_width) {
+        e.x -= 2.0 * (crater_width - length2.x); //crater
+        //crater derivatives
         e.y -= 2.0 * -length2.y;
         e.z -= 2.0 * -length2.z;
     }
     else {
-        e.y += elevate*exp(-large*(max(length2.x, A)))*(-large*length2.y);
-        e.z += elevate*exp(-large*(max(length2.x, A)))*(-large*length2.z);
+        //volcano derivatives
+        e.y += elevate*exp(-large*(max(length2.x, crater_width)))*(-large*length2.y);
+        e.z += elevate*exp(-large*(max(length2.x, crater_width)))*(-large*length2.z);
     }
-
-    //canyons -- removed for now
-    //vec2 c = smoothstepd( -0.08, -0.01, e.x );
-    //e.x = e.x + 0.15*c.x;
-    //e.yz = e.yz + 0.15*c.y*e.yz;
 
     e.x *= amp;
     e.yz *= amp*sca;
@@ -308,19 +225,18 @@ vec4 terrainMapD( in vec2 p )
 
 
 // ----- FOG FUNCTION ADAPTED FROM INIGO QUIELEZ: http://www.iquilezles.org/www/articles/fog/fog.htm
-vec3 applyFog(in vec3 rgb, in float dist, in vec3  rayDir, in vec3  sunDir )
+vec3 applyFog(in vec3 rgb, in float dist, in vec3 ro, in vec3  rayDir, in vec3  sunDir )
 {
     float fogAmount = 1.0 - exp( -(dist*dist/max_distance)*((fog*fog) / 200.0) );
     float sunAmount = clamp( dot( rayDir, sunDir ), 0.0, 1.0 );
-    vec3 fogColor  = mix( 0.5*normalize(vec3(118,34,8)),
-            vec3(1.0,0.9,0.1), // yellowish
+    vec3 fogColor  = mix( 0.5*normalize(vec3(118,34,8)), vec3(1.0,0.9,0.1), 
             pow(sunAmount, (0.5/(sun_dispersion)) * 8.0 * ((dist) / 1000.0)) );
     return mix(rgb, fogColor, fogAmount );
 }
 
 
 // ----- LENS FLARE ADAPTED FROM NIMITZ: https://www.shadertoy.com/view/XtS3DD
-float pent(in vec2 p){
+float pent(in vec2 p) {
     vec2 q = abs(p);
     return max(max(q.x*1.176-p.y*0.385, q.x*0.727+p.y), -p.y*1.237)*1.;
 }
@@ -336,16 +252,11 @@ vec3 flare(vec2 p, vec2 pos)
 	float a = atan(q.x,q.y);
     float rz = 0;
 
-    vec2 p2 = mix(p,pds,-.5*D); //Reverse distort
+    vec2 p2 = mix(p,pds,-.5); //Reverse distort
     rz += max(0.01-pow(circle(p2 - 0.2*pos),1.7),.0)*3.0;
     rz += max(0.01-pow(pent(p2 + 0.4*pos),2.2),.0)*3.0;
-    //rz += max(0.01-pow(pent(p2 + 0.2*pos),2.5),.0)*3.0;
-    //rz += max(0.01-pow(pent(p2 - 0.1*pos),1.6),.0)*4.0;
     rz += max(0.01-pow(pent(-(p2 + 1.*pos)),2.5),.0)*5.0;
     rz += max(0.01-pow(pent(-(p2 - .5*pos)),2.),.0)*4.0;
-    //rz += max(0.01-pow(pent(-(p2 + .7*pos)),2.),.0)*3.0;
-    //rz += max(0.01-pow(pent(-(p2 + 1.4*pos)),1.9),.0)*3.0;
-    //rz += max(0.01-pow(pent(-(p2 + 1.0*pos)),3.0),.0)*3.0;
     rz += max(0.01-pow(circle(-(p2 + 1.8*pos)),3.0),.0)*3.0;
 
     rz *= (1.0 - length(q));
@@ -356,139 +267,35 @@ vec3 flare(vec2 p, vec2 pos)
 
 
 // ------WATER ADAPTED FROM FRANKENBURG: https://www.shadertoy.com/view/4sXGRM
-
-float large_waveheight = 0.7; // change to adjust the "heavy" waves (set to 0.0 to have a very still ocean :)
-float small_waveheight = 1.0; // change to adjust the small waves
+float large_waveheight = 0.7; 
+float small_waveheight = 1.0; 
 vec3 watercolor  = vec3(0.2, 0.25, 0.3);
-// this calculates the water as a height of a given position
-float water( vec2 p )
-{
+float water( vec2 p ) {
     vec2 shift2 = 0.0003*vec2( time*190.0*2.0, -time*130.0*2.0 );
-    //float terrain = terrainMap(p - time, fbm_octaves);
-    //shift2 *= clamp((water_level - terrain) / 500.0, 0.0, 1.0);
 
     float wave = 0.0;
-    wave += sin(p.x * 0.021  + shift2.x) * 4.5;
+    wave += sin(p.x * 0.021  +                     shift2.x)         * 4.5;
     wave += sin(p.x * 0.0172 +p.y        * 0.010 + shift2.x * 1.121) * 4.0;
     wave -= sin(p.x * 0.00104+p.y        * 0.005 + shift2.x * 0.121) * 4.0;
     wave += sin(p.x * 0.02221+p.y        * 0.01233+shift2.x * 3.437) * 5.0;
     wave += sin(p.x * 0.03112+p.y        * 0.01122+shift2.x * 4.269) * 2.5 ;
     wave *= large_waveheight;
     wave -= fbm(p*0.004-shift2*.5 + vec2(1.0, -2.0), fbm_octaves)*small_waveheight*24.;
-    // ...added by some distored random waves (which makes the water looks like water :)
 
     return water_level + wave;
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mat4 rotateY(float theta) {
-    return mat4(
-        vec4(cos(theta), 0, sin(theta), 0),
-        vec4(0, 1, 0, 0),
-        vec4(-sin(theta), 0, cos(theta), 0),
-        vec4(0, 0, 0, 1)
-    );
-}
-
-mat4 rotateX(float theta) {
-    return mat4(
-        vec4(1, 0, 0, 0),
-        vec4(0, cos(theta), -sin(theta), 0),
-        vec4(0, sin(theta), cos(theta), 0),
-        vec4(0, 0, 0, 1)
-    );
-}
-
-mat4 rotateZ(float theta) {
-    return mat4(
-        vec4(cos(theta), -sin(theta), 0, 0),
-        vec4(sin(theta), cos(theta), 0, 0),
-        vec4(0, 0, 1, 0),
-        vec4(0, 0, 0, 1)
-    );
-}
-
-// Pseudo-random number
-// From: lumina.sourceforge.net/Tutorials/Noise.html
+// Pseudo-random number generator adapted from: lumina.sourceforge.net/Tutorials/Noise.html
 float rand(vec2 co){
     return fract(cos(dot(co,vec2(4.898,7.23))) * 23421.631);
-}
-
-
-// --------------------------------------------------------------------
-// ------------------------- OPERATIONS -------------------------------
-// --------------------------------------------------------------------
-
-//Polynomial smooth minimum from: http://iquilezles.org/www/articles/smin/smin.htm
-float smin(float a, float b, float k ) {
-    float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
-    return mix( b, a, h ) - k*h*(1.0-h);
-}
-
-float opSubtract( float d1, float d2 ) {
-    return max(-d1,d2);
-}
-
-float opUnion(float d1, float d2) {
-    return min(d1, d2);
-}
-
-
-// --------------------------------------------------------------------
-// ---------------------- DISTANCE FUNCTIONS --------------------------
-// --------------------------------------------------------------------
-
-float map(in vec3 p) {
-    return 0.0;
-}
-
-vec3 normaleRubata(in vec3 p) {
-    return terrainMapD(p.xz).yzw;
-}
-
-//Adapted from: http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/#rotation-and-translation
-vec3 calcNormal(in vec3 p) {
-    float eps = 0.0001;
-    return normalize(vec3(
-        map(vec3(p.x + eps, p.y, p.z)) - map(vec3(p.x - eps, p.y, p.z)),
-        map(vec3(p.x, p.y + eps, p.z)) - map(vec3(p.x, p.y - eps, p.z)),
-        map(vec3(p.x, p.y, p.z + eps)) - map(vec3(p.x, p.y, p.z - eps))
-    ));
-}
-
-//Adapted from: https://github.com/zackpudil/raymarcher/blob/master/src/shaders/scenes/earf_day.frag
-mat3 camera(vec3 e, vec3 l) {
-    vec3 f = normalize(l - e);
-    vec3 r = cross(vec3(0, 1, 0), f);
-    vec3 u = cross(f, r);
-    
-    return mat3(r, u, f);
 }
 
 
 vec4 raymarch_terrain(vec3 ro, vec3 rd) {
     vec4 ret = vec4(0,0,0,0);
 
-    float initial_jitter = 0.0; //camera will jitter when too close to an object
-    if (jitter_factor > 0.01) {
-        initial_jitter = jitter_factor*rand(gl_FragCoord.xy + vec2(time));
-    }
-
-    float t = initial_jitter; // current distance traveled along ray
+    float t = 0.01; // current distance traveled along ray
     for (int i = 0; i < max_raymarching_steps; ++i) {
         if (t > max_distance) break;
         vec3 p = ro + rd * t; //point hit on the surface
@@ -514,7 +321,7 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
             //reflection
             vec3 refl_col = renderSky(p, rd_bis);
             // raymarch to see if the sky is visible
-            if (rd_bis.y > 0.0 && shadows > 0.0) {
+            if (rd_bis.y > 0.0 && water_refl > 0.0) {
                 vec3 myro = p;
                 vec3 myrd = rd_bis;
                 float tt = 0.1;
@@ -542,8 +349,9 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
             terrain = terrainMap(p.xz, fbm_octaves);
 
             col += vec3(.15,.15,.15)*(clamp(20.0 / (water_level - terrain), 0.0, 1.0));
-            col = applyFog(col, t, rd, kSunDir);
+            col = applyFog(col, t, ro, rd, kSunDir);
 
+            //fading away in the distance
             float alpha = pow(t / max_distance, 3.0);
             if (alpha > 0.2) 
                 col = mix(col, renderSky(ro, rd), alpha - 0.2);
@@ -555,14 +363,13 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
 
         if (d < 0.002 * t) { 
-            vec3 n = normaleRubata(p);
+            vec3 n = terrainMapD(p.xz).yzw;
             vec3 col = vec3(ka);
 
-
+            //lights
             float diffuse_sun = clamp(kd * dot(kSunDir, n), 0.0, 1.0);
-            //float specular = clamp(ks * pow(max(dot(n , normalize(kSunDir + normalize(_CameraDir - p))), 0.0), blinn_phong_alpha), 0.0, 1.0);
-            float specular = 0.0;
-
+            float indirect_sun = clamp(dot(n, normalize(kSunDir*vec3(-1.0, 0.0, -1.0))), 0.0, 1.0);
+            float diffuse_sky = clamp(0.5 + 0.5*n.y, 0.0, 1.0);
 
             //shadows
             float shadow = 1.0;
@@ -586,36 +393,22 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
 
 
 
-            //col += diffuse_sun * vec3(1.64, 1.27, 0.99) * pow(vec3(shadow), vec3(1.0, 1.2, 1.5));
-            //col += diffuse_sun * normalize(vec3(250,206,14))* pow(vec3(shadow), vec3(1.0, 1.2, 1.5));
             col += diffuse_sun * normalize(vec3(250,206,14))* pow(vec3(shadow), vec3(1.0, 1.2, 1.5));
+            col += indirect_sun *  vec3(0.40, 0.28, 0) * 0.14; 
+            col += diffuse_sky * vec3(0.596, 0.182, 0.086) * 0.2;
 
-            float indirect_sun = clamp(dot(n, normalize(kSunDir*vec3(-1.0, 0.0, -1.0))), 0.0, 1.0);
-
-            col += indirect_sun *  vec3(0.40, 0.28, 0) * 0.14; // MULTIPLY PER AMBIENT OCCLUSION HERE
-
-            float diffuse_sky = clamp(0.5 + 0.5*n.y, 0.0, 1.0);
-
-
-            col += diffuse_sky * vec3(0.596, 0.182, 0.086) * 0.2;  // MULTIPLY PER AMBIENT OCCLUSION HERE
-
-
-            //float diffuse_lava = B*clamp(dot(n, normalize(vec3(0,C*terrainMap(vec2(0), fbm_octaves), 0))), 0.0, 1.0);
             if (lava > 0.0) {
                 float lava_height = terrainMap(vec2(0), fbm_octaves) + 50.0;
                 float diffuse_lava = 0.031*clamp(dot(n, normalize(vec3(0.0,lava_height, 0.0))), 0.0, 1.0);
                 col += 100000.0 * 0.013 * vec3(1,.1,.1) / (p.x*p.x + (p.y-lava_height)*(p.y-lava_height) + p.z*p.z);
             }
 
-            col += specular;
-
-
             // far away terrain fades away
             float alpha = pow(t / max_distance, 3.0);
             if (alpha > 0.2) 
                 col = mix(col, renderSky(ro, rd), alpha - 0.2);
             
-            col = applyFog(col, t, rd, kSunDir);
+            col = applyFog(col, t, ro, rd, kSunDir);
 
             return vec4(col, 1);
         }
@@ -627,12 +420,19 @@ vec4 raymarch_terrain(vec3 ro, vec3 rd) {
     return vec4(sky.xyz, 1.0);
 }
 
+//Adapted from: https://github.com/zackpudil/raymarcher/blob/master/src/shaders/scenes/earf_day.frag
+mat3 camera(vec3 e, vec3 l) {
+    vec3 f = normalize(l - e);
+    vec3 r = cross(vec3(0, 1, 0), f);
+    vec3 u = cross(f, r);
+    
+    return mat3(r, u, f);
+}
 
 void main() {
-
     //camera movement
     if (mouse.y != 0.0) {
-        _CameraDir.y =  max(5.0*(mouse.y / resolution.y - 0.5)*3.0,0.8); // to avoid going underwater
+        _CameraDir.y =  max(5.0*(mouse.y / resolution.y - 0.5)*3.0,0.70); // to avoid going underwater
         _CameraDir.z = -5.0*cos(mouse.x / resolution.x * 2.0 * PI);
         _CameraDir.x = -5.0*sin(mouse.x / resolution.x * 2.0 * PI);
     }
@@ -648,7 +448,6 @@ void main() {
             vec3 rd = camera(_CameraDir, vec3(0.0, 200.0, 0.0))*normalize(vec3(uv, 2.0));
 
             fragColor += raymarch_terrain(_CameraDir, rd);
-            //fragColor = vec4(fbm(uv*40.0, fbm_octaves));
 
             if (lens_flare > 0) {
                 vec3 sunpos = inverse(camera(_CameraDir, vec3(0)))*kSunDir;
@@ -656,7 +455,6 @@ void main() {
             }
         }
     }
-
 
     fragColor /= float(AA*AA);
     if (gamma > 0) fragColor = pow(fragColor, vec4(1.0 / 2.2));
